@@ -1,1 +1,1 @@
-# Retention_Policy_for_Video_Streaming_Company
+# The effects of a Retention Policy in a video streaming company
