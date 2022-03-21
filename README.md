@@ -1,1 +1,1 @@
-# The effects of a Retention Policy in a fictitious video streaming company
+# Uplifting Model applied to a fictitious video streaming company
