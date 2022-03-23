@@ -71,7 +71,7 @@ USERS$treated <- sample(0:1,num_users,replace=T)
 
 USERS[,churn:=ifelse(score>0,0,1)] #if positive score, the user doesn't churn (0), otherwise they churn (1)
 
-# to create some error in the dataset, for some random ids switch between 0 and 1
+# to create some error in the dataset, for some (100) random ids switch between 0 and 1
 seed(10)
 USERS[sample(USERS$u_id,100),churn:=ifelse(churn==1,0,1)]
 
