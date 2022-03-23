@@ -8,6 +8,7 @@ num_users <- 1000
 
 u_id <- seq(1,num_users)
 
+set.seed(10)
 u_age <- sample(c(1,2,3,4,5,6),num_users,replace=T,prob=c(0.1,0.30,0.35,0.15,0.05,0.05))
 # 1=<18 2=[18,25) 3=[25,35) 4=[35,45), 5=[45,55), 6=>55
 
@@ -37,6 +38,7 @@ USERS <- data.table(u_id, u_gender, u_age, u_weekly_utilisation, u_sub_utilisati
                     u_genre_pref, u_rating_given, u_other_sub)
 
 # defining the users' occupation variable based on some conditions
+set.seed(10)
 USERS$u_occupation[u_age==1] <- 1
 USERS$u_occupation[u_age==2|u_age==3] <- sample(c(2,3,4),nrow(USERS[u_age==2|u_age==3]),replace=T,prob=c(0.4,0.4,0.2))
 USERS$u_occupation[u_age==4|u_age==5] <- sample(c(2,3,4),nrow(USERS[u_age==4|u_age==5]),replace=T,prob=c(0.1,0.7,0.2))
@@ -66,6 +68,7 @@ USERS[,score:=ifelse(u_occupation==2|u_occupation==3,score-30,score+30)]
 USERS$score <- scale(USERS$score)  #scaling the scores
 
 # treatment variable randomly assigned to the users
+set.seed(10)
 USERS$treated <- sample(0:1,num_users,replace=T)
 
 
@@ -76,4 +79,4 @@ seed(10)
 USERS[sample(USERS$u_id,100),churn:=ifelse(churn==1,0,1)]
 
 # To do:
-# 1. add seeds in the data generation steps when using sample() function so to always have the same data
+# 1. check if some set.seeds() have been forgotten, or some are not needed
