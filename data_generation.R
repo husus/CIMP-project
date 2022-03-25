@@ -76,4 +76,7 @@ USERS[,churn:=ifelse(score>0,0,1)] #if positive score, the user doesn't churn (0
 USERS[sample(USERS$u_id,100),churn:=ifelse(churn==1,0,1)]
 
 # To do:
-# 1. check if some set.seed() is really global, should be, I have checked, but check again to be sure
+# 1. check if some set.seed() is really global. #should be, I have checked, but check again to be sure
+# 2. add a feature about subscription plan of each user (individual vs family?)
+# 3. add probability to the features about utilisation --> skewed distribution
+
