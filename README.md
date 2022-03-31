@@ -1,1 +1,1 @@
-# Uplifting Model applied to a fictitious video streaming company
+# Uplift Modeling applied to a fictitious video streaming company
