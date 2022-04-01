@@ -33,9 +33,12 @@ u_genre_pref <- sample(1:7,num_users,replace=T)
 u_other_sub <- sample(0:1,num_users,replace=T)
 # binary variable where 0=not subscribed to other streaming platforms, 1=yes
 
+u_plan <- sample(1:2,num_users,replace=T)
+# type of subscription plan: 1=individual 2=family
+
 # creating the data table with all the users
 USERS <- data.table(u_id, u_gender, u_age, u_weekly_utilisation, u_sub_utilisation, u_format_pref,
-                    u_genre_pref, u_rating_given, u_other_sub)
+                    u_genre_pref, u_rating_given, u_other_sub，u_plan)
 
 # defining the users' occupation variable based on some conditions
 USERS$u_occupation[u_age==1] <- 1
@@ -56,24 +59,26 @@ barplot(table(USERS$u_age, USERS$u_occupation), beside=T, legend=T, col=rainbow(
 # score = u_genre_pref(1|4) 80 + u_format_pref(1) 100 + u_age(1|2) 30 - u_age(3|4|5|6) 30 
 #         + u_occupation(1|4|5) 30 - u_occupation(2|3) 30 - u_other_sub*55 + u_rating_given*50
 #         + u_sub_utilisation*130 + u_weekly_utilisation*115 + error
+# what about the subscription plan?
 
 # NB: coefficients arbitrarily given
-USERS[,score:=u_rating_given*50+u_sub_utilisation*130+u_weekly_utilisation*115-u_other_sub*55+rnorm(1)*100]
-USERS[u_genre_pref==1|u_genre_pref==4, score:=score+80]
-USERS[u_format_pref==1, score:=score+100]
-USERS[,score:=ifelse(u_age==1|u_age==2,score+30,score-30)] 
-USERS[,score:=ifelse(u_occupation==2|u_occupation==3,score-30,score+30)] 
+USERS[,base_score:=u_rating_given*50+u_sub_utilisation*130+u_weekly_utilisation*115-u_other_sub*55+rnorm(1)*100]
+USERS[u_genre_pref==1|u_genre_pref==4, base_score:=base_score+80]
+USERS[u_format_pref==1, base_score:=base_score+100]
+USERS[,base_score:=ifelse(u_age==1|u_age==2,base_score+30,base_score-30)] 
+USERS[,base_score:=ifelse(u_occupation==2|u_occupation==3,base_score-30,base_score+30)] 
 
-USERS$score <- scale(USERS$score)  #scaling the scores
+USERS$base_score_scaled <- scale(USERS$base_score)  #scaling the scores
 
 # treatment variable randomly assigned to the users
 USERS$treated <- sample(0:1,num_users,replace=T)
 
 
-USERS[,churn:=ifelse(score>0,0,1)] #if positive score, the user doesn't churn (0), otherwise they churn (1)
+# if positive score, the user doesn't churn and re-subscribe (1), otherwise they churn (0)
+USERS[,resub:=ifelse(base_score>0,1,0)]
 
 # to create some error in the dataset, for some (100) random ids switch between 0 and 1
-USERS[sample(USERS$u_id,100),churn:=ifelse(churn==1,0,1)]
+USERS[sample(USERS$u_id,100),resub:=ifelse(resub==1,0,1)]
 
 # To do:
 # 1. check if some set.seed() is really global. #should be, I have checked, but check again to be sure
