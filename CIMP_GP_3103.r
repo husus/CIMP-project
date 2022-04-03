@@ -4,7 +4,7 @@ set.seed(10)
 
 # Packages for Data Manipulation 
 library("dplyr")
-library('tidyverse')
+library("tidyverse")
 library("data.table")
 
 # Stuff for Graphs and Plots
@@ -17,7 +17,7 @@ library("RColorBrewer")
 
 
 ##I define a personalized theme for ggplot based on a default theme
-mytheme<-theme_minimal()+theme(plot.title = element_text(hjust = 0.5))
+mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
 
 # General Tools for Regressions and Marginal Effects
 library("car")
@@ -27,7 +27,7 @@ library("margins")
 library("tools4uplift")
 
 # Package for XGBoosting
-library('xgboost')
+library("xgboost")
 
 # Package for HCF
 library("grf")
@@ -36,19 +36,20 @@ library("grf")
 library("matrixStats")
 library("reshape2")
 library("Rcpp")
-library('mltools')
-library('glmnet')
-library('caret')
+library("mltools")
+library("glmnet")
+library("caret")
 library("mlr")
 
 
 #Automatically Install Missing Packages
 listOfPackages <- c("dplyr","tidyverse","data.table","ggplot2","ggpubr",
                     "gplots","plotly","ggrepel","RColorBrewer",
-                    "reshape2","margins", "tools4uplift","xgboost","grf","ggplot2","matrixStats",
+                    "reshape2","margins", "tools4uplift","xgboost","grf",
+                    "ggplot2","matrixStats",
                     "Rcpp","car","mltools","glmnet",
                     "caret","mlr")
-for (i in listOfPackages){
+for (i in listOfPackages) {
      if(! i %in% installed.packages()){
          install.packages(i, dependencies = TRUE)
          library(i)
@@ -92,7 +93,7 @@ USERS <- data.table(u_id, u_gender, u_age, u_weekly_utilisation, u_sub_utilisati
                     u_genre_pref, u_rating_given, u_other_sub)
 
 
-USERS
+#USERS
 
 # defining the users' occupation variable based on some conditions
 USERS$u_occupation[u_age==1] <- 1
@@ -313,38 +314,41 @@ qini_curve2
 
 # Here there are two options: implementing model selection as one would do
 # for binary classification, considering model as separated and using the
-# the best single models possible; or implementing model selection by 
+# the best single models possible; or implementing model selection by
 # so as to maximize the Qini area.
 
 
 
-#Once the two models have been estimated, let's derive once gain the 
-# estimated treatment effects 
+#Once the two models have been estimated, let's derive once gain the
+# estimated treatment effects
 
 
 
 
-# Evaluating Performance, Qini curve and Qini Coeff on the test set - scrivere funzione che lo faccia 
-# in automatico
+# Evaluating Performance, Qini curve and Qini Coeff on the test set - 
+# scrivere funzione che lo faccia in automatico
 
-perf_tm_final=PerformanceUplift(data = test_tm, treat = "treat",
-                                outcome = "y", prediction = "tau", equal.intervals = TRUE, nb.group = 10)
+perf_tm_final = PerformanceUplift(
+                                  data = test_tm, treat = "treat",
+                                  outcome = "y", prediction = "tau", 
+                                  equal.intervals = TRUE, nb.group = 10
+                                  )
 
 perf_tm_final
 barplot.PerformanceUplift(perf_tm_final)
 
-QiniArea(perf_tm_final) 
+QiniArea(perf_tm_final)
 
-# Plotting Qini curve and Qini Coeff on the test set - scrivere funzione che lo faccia 
-# in automatico
+# Plotting Qini curve and Qini Coeff on the test set - 
+# scrivere funzione che lo faccia in automatico
 
-df=data.frame(matrix(nrow=10, ncol=3))
-df[,1]=perf_tm_final[[1]]
-df[,2]=round(perf_tm_final[[6]],2)
-df[,3]=round(perf_tm_final[[7]],2)
-colnames(df)=c("Dec", "num.incr", "perc.incr")
-firstrow=numeric(3)
-df=rbind(firstrow,df)
+df = data.frame(matrix(nrow=10, ncol=3))
+df[,1] = perf_tm_final[[1]]
+df[,2] = round(perf_tm_final[[6]], 2)
+df[,3] = round(perf_tm_final[[7]], 2)
+colnames(df) = c("Dec", "num.incr", "perc.incr")
+firstrow = numeric(3)
+df = rbind(firstrow, df)
 
 
 ##Plot Qini curves
@@ -361,19 +365,24 @@ qini_curve2<-ggplot(df, aes(x=Dec, y=perc.incr))+geom_point(color="blue")+geom_l
 qini_curve2
 
 
+
+
+# ALESSIA XGBOOST 
+
 # Let's experiment with a more complex Classifier: XGBoost -- codice preso online
 
 #Setting Up the xgboost learner
-
 xgb_learner <- makeLearner("classif.xgboost", predict.type = "prob", par.vals = list(
   objective = "binary:logistic", eval_metric = "error"))
 
-
+#set parameter space
 xgb_params <- makeParamSet(
   makeIntegerParam("nrounds", lower = 100, upper = 500), makeIntegerParam("max_depth", lower = 1, upper = 10),
   makeNumericParam("eta", lower = .1, upper = .5), makeNumericParam("lambda", lower = -1, upper = 0, trafo = function(x) 10^x))
-ctrl <- makeTuneControlRandom(maxit = 5)  #nel codice era 15, ma per ora ho diminuito per far prima
-resample_desc <- makeResampleDesc("CV", iters = 4)
+ctrl <- makeTuneControlRandom(maxit = 15)  #nel codice era 15, ma per ora ho diminuito per far prima
+
+#set resampling strategy
+resample_desc <- makeResampleDesc("CV", iters = 4) #iters = CV with 4 iterations
 
 
 #creating the model for treatment group:
@@ -430,6 +439,15 @@ qini_curve2<-ggplot(df, aes(x=Dec, y=perc.incr))+geom_point(color="blue")+geom_l
   xlim(0, 1)+geom_segment(x = 0, y=0, xend=1, yend=df[11,3], color="red", 
                           linetype="dashed", size=0.5)
 qini_curve2
+
+
+
+
+
+
+
+
+
 
 # Intuition
 # logit_model_inter<-glm(y ~ u_weekly_utilisation + u_rating_given + treat + u_weekly_utilisation*treat + u_rating_given*treat , family= binomial(link=logit), data=data)
