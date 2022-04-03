@@ -19,7 +19,7 @@ library("dplyr")
 library('tidyverse')
 library("data.table")
 
-# general Tools for Regressions and Marginal Effects
+# general tools for regressions and Marginal Effects
 library("car")
 library("margins")
 
