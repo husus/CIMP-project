@@ -165,7 +165,6 @@ barplot(table(control$u_age), col='#66CCFF',
 
 
 
-library(RColorBrewer)
 
 pal6 <- brewer.pal(6, "Set2")
 barplot(table(treatment$u_age, treatment$resub), beside=T, col=pal6, xlab='resub', main='treatment group')
