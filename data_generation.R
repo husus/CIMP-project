@@ -54,9 +54,17 @@ table(USERS$u_age, USERS$u_occupation)
 
 age_group = c('<18','[18,25)','[25,35)','[35,45)','[45,55)','≥55')
 occup_group = c('student','part-time','full-time','unemployed','retired')
-barplot(table(USERS$u_age, USERS$u_occupation), beside=T, 
-        col=rainbow(6), names.arg=occup_group, main='Distribution of age vs occupation groups',
-        legend=TRUE, legend.text=age_group, args.legend = list(bty = 'n', y.intersp = 1.5) )
+pal6 <- brewer.pal(6, "Set2")
+
+barplot(table(USERS$u_age, USERS$u_occupation), beside=T, col=pal6,
+        names.arg=occup_group, main='Distribution of age vs occupation groups')
+legend("topright", legend=age_group, fill=pal6, cex = 0.9,
+        text.width = 3.5, y.intersp = 1.5, title='Age group')
+
+
+# treatment variable randomly assigned to the users
+USERS$treated <- sample(0:1,num_users,replace=T)
+
 
 # we suppose that our streaming service is focused on action and sci-fi tv-series 
 # u_genre_pref(1=action||4=sci-fi), u_format_pref(1=series), u_age(-), u_occupation(-)
@@ -78,10 +86,6 @@ USERS[,base_score:=ifelse(u_occupation==2|u_occupation==3,base_score-30,base_sco
 USERS$base_score_scaled <- scale(USERS$base_score)  #scaling the scores
 
 
-# treatment variable randomly assigned to the users
-USERS$treated <- sample(0:1,num_users,replace=T)
-
-
 summary(USERS$base_score)
 hist(USERS$base_score, main="Distribution of users' baseline scores",
     xlab="Baseline scores", ylab="Frequency",
@@ -100,6 +104,7 @@ summary(USERS$new_base_score)
 hist(USERS$new_base_score, main="Distribution of users' baseline scores modified",
     xlab="Modified baseline scores", ylab="Frequency",
     xlim=range(0,2000), col='light blue')
+
 
 
 # The impact of our policy can be divided into two components: 
