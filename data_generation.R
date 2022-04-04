@@ -165,43 +165,77 @@ barplot(table(control$u_age), col='#66CCFF',
 
 
 
+# Data Visualization on the distribution of users between resub=1 and resub=0
+barplot(table(treatment$resub, treatment$u_gender), col=rainbow(2),
+        xlab='Gender', main='Treatment group', names.arg=c('Male','Female'),
+        legend=T, args.legend=list(title='Resub',cex=0.9, text.width = 0.1, y.intersp = 1.2))
+barplot(table(control$resub, control$u_gender), col=rainbow(2),
+        xlab='Gender', main='Control group', names.arg=c('Male','Female'),
+        legend=T, args.legend=list(title='Resub',cex=0.9, text.width = 0.1, y.intersp = 1.2))
 
 pal6 <- brewer.pal(6, "Set2")
-barplot(table(treatment$u_age, treatment$resub), beside=T, col=pal6, xlab='resub', main='treatment group')
-legend("topright", legend=1:6, fill=pal6, cex = 0.7, title='age')
-barplot(table(control$u_age, control$resub), beside=T, col=pal6, xlab='resub', main='control group')
-legend("topright", legend=1:6, fill=pal6, cex = 0.7, title='age')
+barplot(table(treatment$u_age, treatment$resub), beside=T, col=pal6, xlab='Resub', main='Treatment group')
+legend("topright", legend=age_group, fill=pal6, cex = 0.9, text.width = 1.4, y.intersp = 1.5,title='Age group')
+barplot(table(control$u_age, control$resub), beside=T, col=pal6, xlab='Resub', main='Control group')
+legend("topright", legend=age_group, fill=pal6, cex = 0.9, text.width = 1.4, y.intersp = 1.5,title='Age group')
 
 pal5 <- brewer.pal(5, "Set2")
-barplot(table(treatment$u_occupation, treatment$resub), beside=T, col=pal5, xlab='resub', main='treatment group')
-legend("topright", legend=1:5, fill=pal5, cex = 0.7, title='occup')
-barplot(table(control$u_occupation, control$resub), beside=T, col=pal5, xlab='resub', main='control group')
-legend("topright", legend=1:5, fill=pal5, cex = 0.7, title='occup')
+barplot(table(treatment$u_occupation, treatment$resub), beside=T, col=pal5, xlab='Resub', main='Treatment group')
+legend("topleft", legend=occup_group, fill=pal5, cex = 0.9, text.width = 1.7, y.intersp = 1.5, title='Occupation')
+barplot(table(control$u_occupation, control$resub), beside=T, col=pal5, xlab='Resub', main='Control group')
+legend("topleft", legend=occup_group, fill=pal5, cex = 0.9, text.width = 1.7, y.intersp = 1.5, title='Occupation')
 
-barplot(table(treatment$u_rating_given, treatment$resub), beside=T, col=pal6, xlab='resub', main='treatment group')
-legend("top", legend=0:5, fill=pal6, cex = 0.5, title='rating')
-barplot(table(control$u_rating_given, control$resub), beside=T, col=pal6, xlab='resub', main='control group')
-legend("top", legend=0:5, fill=pal6, cex = 0.5, title='rating')
-
-hist(treatment$u_sub_utilisation)
-hist(control$u_sub_utilisation)
+barplot(table(treatment$u_rating_given, treatment$resub), beside=T, col=pal6, xlab='Resub', main='Treatment group')
+legend("topleft", legend=0:5, fill=pal6, cex = 0.9, text.width = 0.9, y.intersp = 1.5, title='Rating')
+barplot(table(control$u_rating_given, control$resub), beside=T, col=pal6, xlab='Resub', main='Control group')
+legend("topleft", legend=0:5, fill=pal6, cex = 0.9, text.width = 0.9, y.intersp = 1.5, title='Rating')
 
 pal7 <- brewer.pal(7, "Set2")
-barplot(table(treatment$u_genre_pref, treatment$resub), beside=T, col=pal7, xlab='resub', main='treatment group')
-legend("bottom", legend=1:7, fill=pal7, cex = 0.5, title='genre')
-barplot(table(control$u_genre_pref, control$resub), beside=T, col=pal7, xlab='resub', main='control group')
-legend("bottom", legend=1:7, fill=pal7, cex = 0.5, title='genre')
+genre_group = c('action','comedy','romance','sci-fi','animation','drama','horror')
+barplot(table(treatment$u_genre_pref, treatment$resub), beside=T, col=pal7, xlab='Resub', main='Treatment group')
+legend("topleft", legend=genre_group, fill=pal7, cex = 0.9, text.width = 1.9, y.intersp = 1.4, title='Genre')
+barplot(table(control$u_genre_pref, control$resub), beside=T, col=pal7, xlab='Resub', main='Control group')
+legend("topleft", legend=genre_group, fill=pal7, cex = 0.9, text.width = 1.9, y.intersp = 1.4, title='Genre')
 
 pal3 <- brewer.pal(3, "Set2")
-barplot(table(treatment$u_format_pref, treatment$resub), beside=T, col=pal3, xlab='resub', main='treatment group')
-legend("topright", legend=1:3, fill=pal3, cex = 0.7, title='occup')
-barplot(table(control$u_format_pref, control$resub), beside=T, col=pal3, xlab='resub', main='control group')
-legend("topright", legend=1:3, fill=pal3, cex = 0.7, title='occup')
+format_group = c('TV series','movies','documentaries')
+barplot(table(treatment$u_format_pref, treatment$resub), beside=T, col=pal3, xlab='Resub', main='Treatment group')
+legend("topleft", legend=format_group, fill=pal3, cex = 0.9, text.width = 1.4, y.intersp = 1.4, title='Format')
+barplot(table(control$u_format_pref, control$resub), beside=T, col=pal3, xlab='Resub', main='Control group')
+legend("topleft", legend=format_group, fill=pal3, cex = 0.9, text.width = 1.4, y.intersp = 1.4, title='Format')
 
-barplot(table(treatment$resub, treatment$u_gender), col=rainbow(2), xlab='gender', main='treatment group')
-legend("top", legend=0:1, fill=pal, cex = 0.5, title='resub')
-barplot(table(control$u_gender, control$resub), beside=T, col=pal7, xlab='resub', main='control group')
-legend("bottom", legend=1:7, fill=pal, cex = 0.5, title='gender')
+pal8 <- brewer.pal(8, "Set2")
+barplot(table(treatment$u_weekly_utilisation, treatment$resub), beside=T, col=pal8, xlab='Resub', main='Treatment group')
+legend("topleft", legend=0:7, ncol=2, fill=pal8, cex = 0.9,
+        text.width = 0.9, y.intersp = 1.5, title='Days per week')
+barplot(table(control$u_weekly_utilisation, control$resub), beside=T, col=pal8, xlab='Resub', main='Control group')
+legend("topleft", legend=0:7, ncol=2, fill=pal8, cex = 0.9,
+        text.width = 0.9, y.intersp = 1.5, title='Days per week')
+# those that use the service less frequently in a week tend to not resubscribe
+
+barplot(table(treatment$resub, treatment$u_plan), col=rainbow(2), space=1, xlim=c(0,5),
+        xlab='Plan type', main='Treatment group', names.arg=c('Individual','Family'),
+        legend=T, args.legend=list(title='Resub',cex=1, text.width=0.3, y.intersp = 1.2))
+barplot(table(control$resub, control$u_plan), col=rainbow(2),space=1, xlim=c(0,5),
+        xlab='Plan type', main='Control group', names.arg=c('Individual','Family'),
+        legend=T, args.legend=list(title='Resub',cex=1, text.width=0.3, y.intersp = 1.2))
+
+barplot(table(treatment$resub, treatment$u_other_sub), col=rainbow(2),space=1, xlim=c(0,5),
+        xlab='Other subscription', main='Treatment group', names.arg=c('No','Yes'),
+        legend=T, args.legend=list(title='Resub',cex=1, text.width=0.3, y.intersp = 1.2))
+
+barplot(table(control$resub, control$u_other_sub), col=rainbow(2), space=1, xlim=c(0,5),
+        xlab='Other subscription', main='Control group', names.arg=c('No','Yes'),
+        legend=T, args.legend=list(title='Resub',cex=1, text.width=0.3, y.intersp = 1.2))
+
+
+hist(treatment$u_sub_utilisation, col='#CC0000',
+        main='Distribution of service utilisation in Treatment',
+        xlab='Subscription usage in proportion')
+hist(control$u_sub_utilisation, col='#66CCFF',
+        main='Distribution of service utilisation in Control',
+        xlab='Subscription usage in proportion')
+
 
 # To do:
 # 1. add probability to the features about utilisation --> skewed distribution
