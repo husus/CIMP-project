@@ -103,7 +103,7 @@ USERS$new_base_score = USERS$base_score + rnorm(1,0,50)*10
 summary(USERS$new_base_score)
 hist(USERS$new_base_score, main="Distribution of users' baseline scores modified",
     xlab="Modified baseline scores", ylab="Frequency",
-    xlim=range(0,2000), col='light blue')
+    xlim=range(-1000,1000), col='light blue')
 
 
 
