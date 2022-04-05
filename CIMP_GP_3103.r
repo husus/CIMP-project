@@ -625,6 +625,8 @@ barplot.PerformanceUplift(perf_intermodel_final_test)
 QiniArea(perf_intermodel_final_test)
 
 
+
+
 # Il secondo approccio consiste nello scorporare il problema di variable selection in due parti
 # Prima di tutto si crea l'insieme delle LASSO path utilizzando il dataset con le variabili factorized. 
 # A questo punto, per ogni path si stima un logit utilizzando però il dataset one hot encoded.
@@ -639,6 +641,7 @@ my_path=LassoPath(train_interuplift, formula)
 #then we use a modified version of BestFeatures: it now carries out only model selection
 # because the path has been already found. It takes the one-hot encoded dataset. 
 #here the problem of the split train/test has been solved. 
+# TODO: sopprimere errore perché è misleading
 BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.precision = 2, path, 
                                equal.intervals = FALSE, nb.group = 10) {
   
@@ -703,7 +706,7 @@ print(final_intermodel_new)
 summary(final_intermodel_new)
 pred_intermodel_final_new= predict(final_intermodel_new, train_oh, treat='treat')
 train_interuplift$pred_intermodel_final_new=pred_intermodel_final_new
-perf_intermodel_final_new=PerformanceUplift(data = train_oh, treat = "treat",
+perf_intermodel_final_new=PerformanceUplift(data = train_interuplift, treat = "treat",
                                         outcome = "y", prediction = "pred_intermodel_final_new", equal.intervals = TRUE, nb.group = 10)
 
 perf_intermodel_final_new

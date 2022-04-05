@@ -22,9 +22,17 @@ for (k in 1:nrow(path)) {
   # Fit the logistic regression model with selected features only
   form=as.formula(paste("y~", paste(names(features), collapse="+")))
   lambda.model=glm(formula=form, data=train, family=binomial(link=logit))
+  data1 <- test; data1[treat] <- 1
+  pr.y1_ct1 <- predict.glm(lambda.model, newdata=data1, type="response")
   
-  test$lambda.pred <- predict(lambda.model, test, treat)
-    lambda.perf <- PerformanceUplift(test, treat, outcome, 
+  data0 <- test; data0[treat] <- 0
+  pr.y1_ct0 <- predict.glm(lambda.model, newdata=data0, type="response")
+  
+  test$lambda.pred <- pr.y1_ct1 - pr.y1_ct0
+  
+  #test$lambda.pred <-predict.InterUplift(lambda.model, test, treat)
+  
+  lambda.perf <- PerformanceUplift(test, treat, outcome, 
                                      "lambda.pred", 
                                      rank.precision = rank.precision, 
                                      equal.intervals = equal.intervals, 
