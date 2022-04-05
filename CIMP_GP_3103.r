@@ -200,8 +200,18 @@ data = data %>%
 
 data_cat= data %>% select(u_gender, u_format_pref, u_genre_pref, u_other_sub, u_occupation)
 data_noncat= data %>% select(-u_gender, -u_format_pref, -u_genre_pref, -u_other_sub, -u_occupation, -u_id)
-data_oh = one_hot(as.data.table(data_cat))
-data_oh=cbind(data$u_id, data_oh, data_noncat)
+# data_oh = one_hot(as.data.table(data_cat))
+
+dummy = dummyVars(" ~ .", data=data_cat)
+newdata = data.frame(predict(dummy, newdata = data_cat))
+
+#rimuovere il punto dal nome (sarà utile per successivi algoritmi)
+for (k in 1:ncol(newdata)) {
+  splitted_str=strsplit(colnames(newdata)[k], ".", fixed = TRUE)
+  colnames(newdata)[k]=paste(splitted_str[[1]][1],splitted_str[[1]][2], sep = "", collapse = NULL)
+  }
+  
+data_oh=cbind(data$u_id, newdata, data_noncat)
 colnames(data_oh)[1]='u_id'
 data_oh$y=as.factor(data_oh$y)
 
@@ -446,12 +456,9 @@ train_interuplift=train
 test_interuplift=test
 
 #Estimating the model
-intermodel<-InterUplift(train, treat='treat', outcome='y', predictors=features, input = "all")
-
+intermodel<-InterUplift(train_interuplift, treat='treat', outcome='y', predictors=features, input = "all")
 print(intermodel)
 summary(intermodel)
-
-
 
 #Extracting predictions for train data
 pred_intermodel= predict(intermodel, train_interuplift, treat='treat')
@@ -472,6 +479,8 @@ QiniArea(perf_intermodel)
 #Extracting predictions for test  data
 pred_intermodel_test= predict(intermodel, test_interuplift, treat='treat')
 test_interuplift$pred_intermodel=pred_intermodel_test
+
+
 
 #Eveluating the model performance on the test set
 perf_intermodel=PerformanceUplift(data = test_interuplift, treat = "treat",
@@ -513,37 +522,56 @@ qini_curve_2
 
 QiniArea(perf_intermodel) 
 
-## 3.2 Model selection ####
-
-
-# Understanding the function LassoPath
 # formula=intermodel[[23]]
 # my_path=LassoPath(train_interuplift, formula)
 # my_path_mod=LassoPath_mod(train_interuplift, formula)
 
-#Finding the optimal set of features
-# La funzione BestFeatures() non funziona con variabili categoriche inserite come fattori, e dunque vanno messe one hot encoded come per l'xgb
-# Penso che per il momento la funzione non metta una categoria come baseline e dunque sputa il set di warnings che si vedono sotto (relativi alla multicollinearitÃ  delle featuers)
-# Capire come puÃ² essere risolta questa cosa (provare a rimuovere una categoria per ogni variabili dela dataset oh, oppure modificare il source code della funzione affinchÃ© lavori con variabili
-# categoriche fattorizzate).
+## 3.2 Model selection ####
+
+
+# In this section the focus in on finding the optimal set of features
+# La funzione BestFeatures va a trovare un set di features ottimo per il modello, utilizzando
+# la cross validation (semplce train vs test) e considerando il Qini coeff. 
+# Il problema principale è dovuto al fatto che la funzione BestFeatures() non
+# funziona con variabili categoriche inserite come fattori, e dunque vanno messe one hot encoded.
+# Se si inseriscono tutte le variabili categoriche però, si ottiengnono dei warnings quando si stima
+# il logit, a causa della potenziale multicollinearity. Rimuovere una colonna per ogni
+# variabile categorica non è una soluzione ottimale, dato che l'algoritmo di selezione delle features
+# si basa su un primo step di regularization, dove le colonne dovrebbero essere tutte presenti. 
+# Due possibili soluzioni: la prima consiste nell'utilizzare il dataset delle variabili one-hot 
+# encoded. E' vero che si ricevono dei warnings come dicevo, però in realtà sembra che il software
+# risolva da solo il problema e non stimi dei coefficienti. Facendo delle prove ho visto che 
+# un modello logit stimato con tutte le variabili one hot encoded restituisce le stesse
+# probabilità stimate che un modello stimato con le variabili factorized (ci sono piccolissime 
+# differenze al 5/6 decimale). 
+
+#Stimo nuovamente il modello logit della sezione 3.1: i coefficienti sono diversi
+#ma le previsioni sono identiche (nonostante il warning). 
+
+intermodel_oh<-InterUplift(train_oh, treat='treat', outcome='y', predictors=features_oh, input = "all")
+print(intermodel_oh)
+summary(intermodel_oh)
+
+pred_intermodel_oh= predict(intermodel_oh, train_oh, treat='treat')
+pred_intermodel_test_oh= predict(intermodel_oh, test_oh, treat='treat')
+
+table(round(pred_intermodel_oh,5)==round(pred_intermodel,5))
+table(round(pred_intermodel_test_oh,5)==round(pred_intermodel_test,5))
+
+#Visto che le predicted probabilities sembrano essere corrette,
+#potremmo pensare di inserire nella funzione il dataset one hot encoded e non prestare 
+# attenzione ai warnings.
+# TODO: in ogni caso dovrei sistemare la funzione per la cosa del train/test split.
 
 inter_opt_feat=BestFeatures(data=data_oh, treat='treat', outcome='y', predictors=features_oh, rank.precision = 2, 
-             equal.intervals = FALSE, nb.group = 10, 
-             validation = TRUE, p = 0.4)
+                            equal.intervals = FALSE, nb.group = 10, 
+                            validation = TRUE, p = 0.4)
 
-# La funzione BestFeatures va a trovare un set di features ottimo per il modello, utilizzando
-# la cross validation (semplce train vs test) e considerando il Qini coeff. Unico problema Ã¨ che parte dall'intero dataset ed utilizza 
-# train e test set creati da zero (fa nuovamente lo split internamente). Noi abbiamo bisogno che utilizzi
-# il train e il test set che abbiamo giÃ  creato e utilizzato negli altri modelli.
-# Bisogna dunque modificare la funzione affinchÃ© lavori in questo modo.
-
-# Writing the corresponding formula for the model
+# Using the best features for writing the formula for our final model
 formula_final_inter=as.formula(paste("y~", paste(inter_opt_feat, collapse="+")))
 
-
-
 ###INTERUPLIFT FORMULA: una versione leggermente modificata della funzione InterUplift()
-# che permette di stimare un modello partendo da una formula prespecificata dall'utente
+# che permette di stimare un modello partendo da una formula prespecificata dall'utente. 
 
 InterUplift.formula <- function(formula, treat, data, ...){
   
@@ -576,62 +604,165 @@ InterUplift.formula <- function(formula, treat, data, ...){
   return(fit)
 }
 
-# Train
-final_intermodel_train<-InterUplift.formula(formula=formula_final_inter, treat="treat", data=train_oh) 
-print(final_intermodel_train)
-summary(final_intermodel_train)
-
-
-pred_intermodel_final= predict(final_intermodel_train, train_interuplift, treat='treat')
+#Model performance evaluation on both train and test
+final_intermodel<-InterUplift.formula(formula=formula_final_inter, treat="treat", data=train_oh) 
+print(final_intermodel)
+summary(final_intermodel)
+pred_intermodel_final= predict(final_intermodel, train_oh, treat='treat')
 train_interuplift$pred_intermodel_final=pred_intermodel_final
 perf_intermodel_final=PerformanceUplift(data = train_interuplift, treat = "treat",
-                                  outcome = "y", prediction = "pred_intermodel_final", equal.intervals = TRUE, nb.group = 10)
+                                        outcome = "y", prediction = "pred_intermodel_final", equal.intervals = TRUE, nb.group = 10)
 
 perf_intermodel_final
 barplot.PerformanceUplift(perf_intermodel_final)
 QiniArea(perf_intermodel_final) 
-
-
-# Test
-
-final_intermodel_test<-InterUplift.formula(formula=formula_final_inter, treat="treat", data=test_interuplift) 
-print(final_intermodel_test)
-summary(final_intermodel_test)
-
-
-pred_intermodel_final= predict(final_intermodel_test, test_interuplift, treat='treat')
-test_interuplift$pred_intermodel_final=pred_intermodel_final
-perf_intermodel_final=PerformanceUplift(data = test_interuplift, treat = "treat",
+pred_intermodel_final_test= predict(final_intermodel, test_oh, treat='treat')
+test_interuplift$pred_intermodel_final=pred_intermodel_final_test
+perf_intermodel_final_test=PerformanceUplift(data = test_interuplift, treat = "treat",
                                         outcome = "y", prediction = "pred_intermodel_final", equal.intervals = TRUE, nb.group = 10)
-perf_intermodel_final
-barplot.PerformanceUplift(perf_intermodel_final)
-QiniArea(perf_intermodel_final)
+perf_intermodel_final_test
+barplot.PerformanceUplift(perf_intermodel_final_test)
+QiniArea(perf_intermodel_final_test)
 
 
-# Holdout - Per ora non lo abbiamo
+# Il secondo approccio consiste nello scorporare il problema di variable selection in due parti
+# Prima di tutto si crea l'insieme delle LASSO path utilizzando il dataset con le variabili factorized. 
+# A questo punto, per ogni path si stima un logit utilizzando però il dataset one hot encoded.
+# Questa cosa può sembrare abbastanza incomprensibile, ma è dovuta a come è scritta la funzione 
+# e a come le LASSO path sono 'tradotte' in modelli da stimare.
 
-# Plotting Qini curve and Qini Coeff on the test set - scrivere funzione che lo faccia 
-# in automatico
+#Creating a LASSO Path with the factorized dataset starting from the complete model,
+#i.e. the formula with all the featuers and all the interaction with the treatment
+formula=intermodel[[23]]
+my_path=LassoPath(train_interuplift, formula)
 
-df=data.frame(matrix(nrow=10, ncol=3))
-df[,1]=perf_intermodel_final[[1]]
-df[,2]=round(perf_intperf_intermodel_finalermodel[[6]],2)
-df[,3]=round(perf_intermodel_final[[7]],2)
-colnames(df)=c("Dec", "num.incr", "perc.incr")
-firstrow=numeric(3)
-df=rbind(firstrow,df)
+#then we use a modified version of BestFeatures: it now carries out only model selection
+# because the path has been already found. It takes the one-hot encoded dataset. 
+#here the problem of the split train/test has been solved. 
+BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.precision = 2, path, 
+                               equal.intervals = FALSE, nb.group = 10) {
+  
+  path <- path[!duplicated(path[,"dimension"]), ]
+  # Keep paths of dimension > 0
+  path <- path[path[, "dimension"] > 0, ]
+  lambda.qini <- c()
+  for (k in 1:nrow(path)) {
+    features <- path[k, -c(1, 2)]
+    # Keep features with non zero estimates only
+    features <- features[features != 0]
+    
+    # Fit the logistic regression model with selected features only
+    form=as.formula(paste("y~", paste(names(features), collapse="+")))
+    lambda.model=glm(formula=form, data=train, family=binomial(link=logit))
+    data1 <- test; data1[treat] <- 1
+    pr.y1_ct1 <- predict.glm(lambda.model, newdata=data1, type="response")
+    
+    data0 <- test; data0[treat] <- 0
+    pr.y1_ct0 <- predict.glm(lambda.model, newdata=data0, type="response")
+    
+    test$lambda.pred <- pr.y1_ct1 - pr.y1_ct0
+    
+    #test$lambda.pred <-predict.InterUplift(lambda.model, test, treat)
+    
+    lambda.perf <- PerformanceUplift(test, treat, outcome, 
+                                     "lambda.pred", 
+                                     rank.precision = rank.precision, 
+                                     equal.intervals = equal.intervals, 
+                                     nb.group = nb.group)
+    if (length(lambda.perf[[1]]) == 1) { lambda.qini[k] <- 0}
+    else {lambda.qini[k] <- QiniArea(lambda.perf)}
+    
+  }
+  
+  best.model <- cbind(path[, c(1, 2)], lambda.qini)
+  
+  if (max(best.model[,3]) == 0) { 
+    warning("All models result in a Qini coefficient equal to 0. Please check LassoPath().")
+  }
+  # Take the model that maximizes the qini coefficient
+  max.qini <- which.max(best.model[,3])
+  best.model <- best.model[max.qini,]
+  
+  # We also need to know which variables were selected
+  best.features <- path[path[, "lambda"] == best.model["lambda"], -c(1, 2, 3)]
+  best.features <- names(best.features[best.features != 0])
+  class(best.features) <- "BestFeatures"
+  return(best.features)
+}
 
 
-# Plot Qini curves
-qini_curve_1<-ggplot(df, aes(x=Dec, y=num.incr))+geom_point(color="blue")+geom_line(color="blue")+
-  mytheme+labs(title="Qini Curve - SM Logit (opt)", y="Incr. Num. of Retained Cust", x="Perc. of Customers Targeted")+
-  scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=df[11,2], color="red", 
-                                                         linetype="dashed", size=0.5)
-qini_curve_1
+inter_opt_feat_new=BestFeatures_mod(train_oh, test_oh, treat='treat', outcome='y', predictors=features_oh, rank.precision = 2, path=my_path, 
+                          equal.intervals = FALSE, nb.group = 10)
+
+# Using the best features for writing the formula for our final model
+formula_final_inter_new=as.formula(paste("y~", paste(inter_opt_feat_new, collapse="+")))
+
+#Model performance evaluation on both train and test
+final_intermodel_new<-InterUplift.formula(formula=formula_final_inter_new, treat="treat", data=train_oh) 
+print(final_intermodel_new)
+summary(final_intermodel_new)
+pred_intermodel_final_new= predict(final_intermodel_new, train_oh, treat='treat')
+train_interuplift$pred_intermodel_final_new=pred_intermodel_final_new
+perf_intermodel_final_new=PerformanceUplift(data = train_oh, treat = "treat",
+                                        outcome = "y", prediction = "pred_intermodel_final_new", equal.intervals = TRUE, nb.group = 10)
+
+perf_intermodel_final_new
+barplot.PerformanceUplift(perf_intermodel_final_new)
+QiniArea(perf_intermodel_final_new) 
+pred_intermodel_final_test_new= predict(final_intermodel_new, test_oh, treat='treat')
+test_interuplift$pred_intermodel_final_new=pred_intermodel_final_test_new
+perf_intermodel_final_test_new=PerformanceUplift(data = test_interuplift, treat = "treat",
+                                             outcome = "y", prediction = "pred_intermodel_final_new", equal.intervals = TRUE, nb.group = 10)
+perf_intermodel_final_test_new
+barplot.PerformanceUplift(perf_intermodel_final_test_new)
+QiniArea(perf_intermodel_final_test_new)
 
 
-qini_curve_2<-ggplot(df, aes(x=Dec, y=perc.incr))+geom_point(color="blue")+geom_line(color="blue")+
-  mytheme+labs(title="Qini Curve - SM (Logit)", y="Incr. % of Retained Cust", x="Perc. of Customers Targeted")+
-  xlim(0, 1)+geom_segment(x = 0, y=0, xend=1, yend=df[11,3], color="red", 
-               linetype="dashed", size=0.5)
-qini_curve_2
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ## Making it difference with LASSO path
+# 
+# intermodel_try<-InterUplift(train_oh, treat='treat', outcome='y', predictors=features_oh, input = "all")
+
+# # Understanding the function LassoPath
+# 
+# 
+# # my_path_mod=LassoPath_mod(train_oh, formula)
+# 
+# 
+# formula_final_inter1=as.formula(paste("y~", paste(best_mod, collapse="+")))
+# 
+# final_intermodel<-InterUplift.formula(formula=formula_final_inter1, treat="treat", data=train_oh) 
+# print(final_intermodel)
+# summary(final_intermodel)
+# 
+# 
+# pred_intermodel_final1= predict.InterUplift(final_intermodel, train_oh, treat='treat')
+# train_interuplift$pred_intermodel_final1=pred_intermodel_final1
+# perf_intermodel_final=PerformanceUplift(data = train_interuplift, treat = "treat",
+#                                         outcome = "y", prediction = "pred_intermodel_final1", equal.intervals = TRUE, nb.group = 10)
+# 
+# perf_intermodel_final
+# barplot.PerformanceUplift(perf_intermodel_final)
+# QiniArea(perf_intermodel_final) 
+# 
+# pred_intermodel_final_test= predict(final_intermodel, test_oh, treat='treat')
+# test_interuplift$pred_intermodel_final=pred_intermodel_final_test
+# perf_intermodel_final=PerformanceUplift(data = test_interuplift, treat = "treat",
+#                                         outcome = "y", prediction = "pred_intermodel_final", equal.intervals = TRUE, nb.group = 10)
+# perf_intermodel_final
+# barplot.PerformanceUplift(perf_intermodel_final)
+# QiniArea(perf_intermodel_final)
+
+
