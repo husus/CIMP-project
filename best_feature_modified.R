@@ -1,14 +1,5 @@
 BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.precision = 2, path, 
                           equal.intervals = FALSE, nb.group = 10) {
-# path=my_path
-# train=train_oh
-# test=test_oh
-# treat='treat'
-# outcome='y'
-# predictors=features_oh
-# rank.precision = 2
-# equal.intervals = FALSE
-# nb.group = 10
 
 path <- path[!duplicated(path[,"dimension"]), ]
 # Keep paths of dimension > 0
@@ -20,7 +11,7 @@ for (k in 1:nrow(path)) {
   features <- features[features != 0]
   
   # Fit the logistic regression model with selected features only
-  form=as.formula(paste("y~", paste(names(features), collapse="+")))
+  form<-as.formula(paste("y~", paste(names(features), collapse="+")))
   lambda.model=glm(formula=form, data=train, family=binomial(link=logit))
   data1 <- test; data1[treat] <- 1
   pr.y1_ct1 <- predict.glm(lambda.model, newdata=data1, type="response")
@@ -50,10 +41,14 @@ if (max(best.model[,3]) == 0) {
 # Take the model that maximizes the qini coefficient
 max.qini <- which.max(best.model[,3])
 best.model <- best.model[max.qini,]
+best.lambda<- best.model['lambda']
+best.dim<- best.model['dimension']
+
 
 # We also need to know which variables were selected
 best.features <- path[path[, "lambda"] == best.model["lambda"], -c(1, 2, 3)]
 best.features <- names(best.features[best.features != 0])
 class(best.features) <- "BestFeatures"
-return(best.features)
+output=list(best.features, best.lambda, best.dim)
+return(output)
 }
