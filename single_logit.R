@@ -68,7 +68,7 @@ u_weekly_utilisation <- sample(0:7,num_users,replace=T)
 u_sub_utilisation <- round(runif(num_users,0,1),4)
 # proportion of time spent on the service since the first subscription
 
-u_rating_given <- sample(0:5,num_users,replace=T)
+u_rating_given <- round(runif(num_users,0,5),2)
 # rating on a scale from 0 to 5 given by each user to the platform
 
 u_format_pref <- sample(c(1,2,3),num_users,replace=T,prob=c(0.5,0.4,0.1))
@@ -141,9 +141,11 @@ hist(USERS$base_score_scaled, main="Distribution of users' baseline scores scale
     xlab="Baseline scores scaled", ylab="Frequency",
     xlim=range(-5,5), col='light blue')
 
+
 # Adding a random component to the underlying score (observable to customers but unobservable to econometricians)
 USERS$new_base_score = USERS$base_score + rnorm(1,0,50)*10
 # NOTE: modified size/magnitude of the noise
+
 summary(USERS$new_base_score)
 hist(USERS$new_base_score, main="Distribution of users' baseline scores modified",
     xlab="Modified baseline scores", ylab="Frequency",
@@ -175,7 +177,7 @@ hist(USERS$treatment_score, main="Final distribution of users' treatment scores"
 
 
 # Sum the baseline and the treatment scores to get each user's total score
-USERS$total_score = USERS$base_score + USERS$treatment_score
+USERS$total_score = USERS$base_score + USERS$new_base_score + USERS$treatment_score
 summary(USERS$total_score)
 hist(USERS$total_score, main="Distribution of users' total scores",
     xlab="Total scores", ylab="Frequency", col='light blue')
@@ -186,28 +188,39 @@ hist(USERS$total_score, main="Distribution of users' total scores",
 # We assume that 15% of customer churn, in particular the first quantile
 threshold_churn = quantile(USERS$base_score, prob=0.15)
 USERS[, resub := ifelse(total_score>threshold_churn,1,0) ] 
+USERS[sample(USERS$u_id,500),resub:=ifelse(resub==1,0,1)]
 summary(USERS$resub)
 
 # to create some error in the dataset, for some (100) random ids switch between 0 and 1
 # USERS[sample(USERS$u_id,100),resub:=ifelse(resub==1,0,1)]
 
+# convert categorical variables to factor 
+cat_var <- c('u_gender', 'u_occupation','u_format_pref', 'u_genre_pref', 'u_other_sub', 'u_plan')
+USERS[, cat_var] <- lapply(USERS[,..cat_var] , factor)
+
 
 
 set.seed(10)
-trainIndex <- createDataPartition(1:num_users,p=0.8,list=FALSE)
+TRAIN_DATA <- USERS %>% sample_frac(.8)
+trainIndex <- TRAIN_DATA[,u_id]
 
-TRAIN_DATA <- USERS[trainIndex,]
-TEST_DATA <- USERS[-trainIndex,]
+TEST_DATA <- USERS %>% filter(!u_id %in% trainIndex)
+TRAIN_DATA <- TRAIN_DATA %>% select(-u_id)
+TEST_DATA <- TEST_DATA %>% select(-u_id)
 
-X_train <- TRAIN_DATA[ , c("resub","u_id","base_score","base_score_scaled","new_base_score","treatment_score"):=NULL ]
-y_train <- TRAIN_DATA[,"resub"]
+X_train <- TRAIN_DATA %>% select(-resub, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+y_train <- TRAIN_DATA %>% select(resub)
 
-X_test <- TEST_DATA[ , c("resub","u_id","base_score","base_score_scaled","new_base_score","treatment_score"):=NULL ]
-y_test <- TEST_DATA[,"resub"]
+X_test <- TEST_DATA %>% select(-resub, -u_id, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+y_test <- TEST_DATA %>% select(resub)
 
+# defining the formula for the logit model
+features <- names(X_train)
+logitformula <- paste("resub~", paste(features, collapse='+'))
 
+logit_model <-glm(formula=logitformula, data=TRAIN_DATA, family= 'binomial')
+summary(logit_model)
 
-
-
-
-
+pred_prob <- predict(logit_model, newdata=TEST_DATA, type='response')
+summary(pred_prob)
+plot(pred_prob)
