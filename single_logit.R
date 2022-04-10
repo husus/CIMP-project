@@ -188,7 +188,10 @@ hist(USERS$total_score, main="Distribution of users' total scores",
 # We assume that 15% of customer churn, in particular the first quantile
 threshold_churn = quantile(USERS$base_score, prob=0.15)
 USERS[, resub := ifelse(total_score>threshold_churn,1,0) ] 
-USERS[sample(USERS$u_id,500),resub:=ifelse(resub==1,0,1)]
+
+set.seed(10)
+perc_err=round(num_users*0.05,0)
+USERS[sample(USERS$u_id,perc_err),resub:=ifelse(resub==1,0,1)]
 summary(USERS$resub)
 
 # to create some error in the dataset, for some (100) random ids switch between 0 and 1
@@ -201,21 +204,23 @@ USERS[, cat_var] <- lapply(USERS[,..cat_var] , factor)
 
 
 set.seed(10)
-TRAIN_DATA <- USERS %>% sample_frac(.8)
+DATA <- USERS %>% select( -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+TRAIN_DATA <- DATA %>% sample_frac(.8)
 trainIndex <- TRAIN_DATA[,u_id]
 
-TEST_DATA <- USERS %>% filter(!u_id %in% trainIndex)
+TEST_DATA <- DATA %>% filter(!u_id %in% trainIndex)
 TRAIN_DATA <- TRAIN_DATA %>% select(-u_id)
 TEST_DATA <- TEST_DATA %>% select(-u_id)
 
-X_train <- TRAIN_DATA %>% select(-resub, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
-y_train <- TRAIN_DATA %>% select(resub)
+# X_train <- TRAIN_DATA %>% select(-resub, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+# y_train <- TRAIN_DATA %>% select(resub)
 
-X_test <- TEST_DATA %>% select(-resub, -u_id, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
-y_test <- TEST_DATA %>% select(resub)
+# X_test <- TEST_DATA %>% select(-resub, -u_id, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+# y_test <- TEST_DATA %>% select(resub)
+
 
 # defining the formula for the logit model
-features <- names(X_train)
+features <- names(TRAIN_DATA)[1:11]
 logitformula <- paste("resub~", paste(features, collapse='+'))
 
 logit_model <-glm(formula=logitformula, data=TRAIN_DATA, family= 'binomial')
