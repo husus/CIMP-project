@@ -237,35 +237,6 @@ features=colnames(train)[2:(length(colnames(train))-2)]
 features_oh=colnames(train_oh)[2:(length(colnames(train_oh))-2)]
 
 
-### EDA #####
-
-
-age_classes <- as.numeric(unique(data %>% pull(u_age)))
-genre_classes <- as.numeric(unique(data %>% pull(u_genre_pref)))
-# ggp <- ggplot(data_heat, aes(u_genre_pref, u_age)) +                           # Create heatmap with ggplot2
-#   geom_tile(aes(fill = value))
-# ggp   
-
-heatmap_data=data
-heatmap_data$ate=0
-
-for (i in seq(1:length(age_classes))) {
-  for(k in seq(1:length(genre_classes))){
-    sub = data[u_age==age_classes[i]&u_genre_pref==genre_classes[k],]
-    perc_t = sum(subset(sub, treat==1)['y'])/length(subset(sub, treat==1)[['y']])
-    perc_c = sum(subset(sub, treat==0)['y'])/length(subset(sub, treat==0)[['y']])
-    ate = perc_t-perc_c
-    print(ate)
-    heatmap_data[heatmap_data$u_age==age_classes[k]&heatmap_data$u_genre_pref==genre_classes[j], 'ate']=ate
-    }
-}
-
-data_heat = data %>% select(u_age, u_genre_pref)
-data_heat <- as.data.frame(melt(data_heat))
-
-
-
-
 ###############################################################################
 ### 3. SINGLE MODEL WITH INTERACTION ----
 ###############################################################################
@@ -554,28 +525,3 @@ plot_list[[2]]
 # # Using the best features for writing the formula for our final model
 # formula_final_inter=as.formula(paste("y~", paste(inter_opt_feat, collapse="+")))
 # 
-# ###INTERUPLIFT FORMULA: una versione leggermente modificata della funzione InterUplift()
-# # che permette di stimare un modello partendo da una formula prespecificata dall'utente. 
-
-
-# #Model performance evaluation on both train and test
-# final_intermodel<-InterUplift.formula(formula=formula_final_inter, treat="treat", data=train_oh) 
-# print(final_intermodel)
-# summary(final_intermodel)
-# pred_intermodel_final= predict(final_intermodel, train_oh, treat='treat')
-# train_interuplift$pred_intermodel_final=pred_intermodel_final
-# perf_intermodel_final=PerformanceUplift(data = train_interuplift, treat = "treat",
-#                                         outcome = "y", prediction = "pred_intermodel_final", equal.intervals = TRUE, nb.group = 10)
-# 
-# perf_intermodel_final
-# barplot.PerformanceUplift(perf_intermodel_final)
-# QiniArea(perf_intermodel_final) 
-# pred_intermodel_final_test= predict(final_intermodel, test_oh, treat='treat')
-# test_interuplift$pred_intermodel_final=pred_intermodel_final_test
-# perf_intermodel_final_test=PerformanceUplift(data = test_interuplift, treat = "treat",
-#                                         outcome = "y", prediction = "pred_intermodel_final", equal.intervals = TRUE, nb.group = 10)
-# perf_intermodel_final_test
-# barplot.PerformanceUplift(perf_intermodel_final_test)
-# QiniArea(perf_intermodel_final_test)
-# 
-#
