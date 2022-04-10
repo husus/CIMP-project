@@ -205,7 +205,7 @@ data_noncat= data %>% select(-u_gender, -u_format_pref, -u_genre_pref, -u_other_
 dummy = dummyVars(" ~ .", data=data_cat)
 newdata = data.frame(predict(dummy, newdata = data_cat))
 
-#rimuovere il punto dal nome (sarà utile per successivi algoritmi)
+#rimuovere il punto dal nome (sar? utile per successivi algoritmi)
 for (k in 1:ncol(newdata)) {
   splitted_str=strsplit(colnames(newdata)[k], ".", fixed = TRUE)
   colnames(newdata)[k]=paste(splitted_str[[1]][1],splitted_str[[1]][2], sep = "", collapse = NULL)
@@ -235,6 +235,35 @@ test_oh=as.data.frame(split_oh[[2]])
 # Define the set of covariates (without y and treat)
 features=colnames(train)[2:(length(colnames(train))-2)]
 features_oh=colnames(train_oh)[2:(length(colnames(train_oh))-2)]
+
+
+### EDA #####
+
+
+age_classes <- as.numeric(unique(data %>% pull(u_age)))
+genre_classes <- as.numeric(unique(data %>% pull(u_genre_pref)))
+# ggp <- ggplot(data_heat, aes(u_genre_pref, u_age)) +                           # Create heatmap with ggplot2
+#   geom_tile(aes(fill = value))
+# ggp   
+
+heatmap_data=data
+heatmap_data$ate=0
+
+for (i in seq(1:length(age_classes))) {
+  for(k in seq(1:length(genre_classes))){
+    sub = data[u_age==age_classes[i]&u_genre_pref==genre_classes[k],]
+    perc_t = sum(subset(sub, treat==1)['y'])/length(subset(sub, treat==1)[['y']])
+    perc_c = sum(subset(sub, treat==0)['y'])/length(subset(sub, treat==0)[['y']])
+    ate = perc_t-perc_c
+    print(ate)
+    heatmap_data[heatmap_data$u_age==age_classes[k]&heatmap_data$u_genre_pref==genre_classes[j], 'ate']=ate
+    }
+}
+
+data_heat = data %>% select(u_age, u_genre_pref)
+data_heat <- as.data.frame(melt(data_heat))
+
+
 
 
 ###############################################################################
@@ -366,18 +395,18 @@ plot_list[[2]]
 # In this section the focus in on finding the optimal set of features
 # La funzione BestFeatures va a trovare un set di features ottimo per il modello, utilizzando
 # la cross validation (semplce train vs test) e considerando il Qini coeff. 
-# Il problema principale è dovuto al fatto che la funzione BestFeatures() non
+# Il problema principale ? dovuto al fatto che la funzione BestFeatures() non
 # funziona con variabili categoriche inserite come fattori, e dunque vanno messe one hot encoded.
-# Se si inseriscono tutte le variabili categoriche però, si ottiengnono dei warnings quando si stima
+# Se si inseriscono tutte le variabili categoriche per?, si ottiengnono dei warnings quando si stima
 # il logit, a causa della potenziale multicollinearity. Rimuovere una colonna per ogni
-# variabile categorica non è una soluzione ottimale, dato che l'algoritmo di selezione delle features
+# variabile categorica non ? una soluzione ottimale, dato che l'algoritmo di selezione delle features
 # si basa su un primo step di regularization, dove le colonne dovrebbero essere tutte presenti. 
 # Due possibili soluzioni:
 
 # Il primo approccio consiste nello scorporare il problema di variable selection in due parti
 # Prima di tutto si crea l'insieme delle LASSO path utilizzando il dataset con le variabili factorized. 
-# A questo punto, per ogni path si stima un logit utilizzando però il dataset one hot encoded.
-# Questa cosa può sembrare abbastanza incomprensibile, ma è dovuta a come è scritta la funzione 
+# A questo punto, per ogni path si stima un logit utilizzando per? il dataset one hot encoded.
+# Questa cosa pu? sembrare abbastanza incomprensibile, ma ? dovuta a come ? scritta la funzione 
 # e a come le LASSO path sono 'tradotte' in modelli da stimare.
 
 #Creating a LASSO Path with the factorized dataset starting from the formula of the complete model (our baseline model),
@@ -387,7 +416,7 @@ my_path=LassoPath(train_interuplift, baseline_formula)
 #then we use a modified version of BestFeatures: it now carries out only model selection
 # because the path has been already found. It takes the one-hot encoded dataset. 
 #here the problem of the split train/test has been solved. 
-# TODO: sopprimere errore perché è misleading
+# TODO: sopprimere errore perch? ? misleading
 
 BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.precision = 2, path, 
                                equal.intervals = FALSE, nb.group = 10) {
@@ -494,10 +523,10 @@ plot_list[[2]]
 
 
 # la seconda soluzione consiste nell'utilizzare il dataset delle variabili one-hot 
-# encoded. E' vero che si ricevono dei warnings come dicevo, però in realtà sembra che il software
+# encoded. E' vero che si ricevono dei warnings come dicevo, per? in realt? sembra che il software
 # risolva da solo il problema e non stimi dei coefficienti. Facendo delle prove ho visto che 
 # un modello logit stimato con tutte le variabili one hot encoded restituisce le stesse
-# probabilità stimate che un modello stimato con le variabili factorized (ci sono piccolissime 
+# probabilit? stimate che un modello stimato con le variabili factorized (ci sono piccolissime 
 # differenze al 5/6 decimale). 
 
 #Stimo nuovamente il modello logit della sezione 3.1: i coefficienti sono diversi
