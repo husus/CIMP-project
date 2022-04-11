@@ -38,7 +38,7 @@ library("mlr") #for hp tuning
 
 
 # total number of users under study - Increased from 1000 to 100000 (experiment)
-num_users <- 100000
+num_users <- 1000 #100000
 
 u_id <- seq(1, num_users)
 
@@ -185,11 +185,9 @@ split_oh <- SplitUplift(data_oh, 0.6, c("treat", "y"))
 train_oh <- as.data.frame(split_oh[[1]])
 test_oh <- as.data.frame(split_oh[[2]])
 
-#Dividing by treatment and control
+#Dividing treatment by treatment and control
 train_oh_treat <- subset(train_oh, treat == 1)
 train_oh_ctrl <- subset(train_oh, treat == 0)
-test_oh_ctrl <- subset(test_oh, treat == 0)
-test_oh_ctrl <- subset(test_oh, treat == 0)
 
 # Define the set of covariates (without y and treat)
 features <- colnames(train)[2:(length(colnames(train)) - 2)]
@@ -340,7 +338,7 @@ qini_curve2 <- ggplot(
                       geom_point(color = "blue") +
                       geom_line(color = "blue") + mytheme +
                       labs(
-                          title = "Qini Curve - SM (Logit)",
+                          title = "Qini Curve - SM (XGB)",
                           y = "Incr. % of Retained Cust",
                           x = "Perc. of Customers Targeted"
                           ) +
