@@ -50,7 +50,6 @@ USERS$u_occupation[u_age==6] <- sample(c(3,5),nrow(USERS[u_age==6]),replace=T,pr
 # occupation: 1=student 2=part-time 3=full-time 4=unemployed 5=retired
 # age: 1=<18 2=[18,25) 3=[25,35) 4=[35,45), 5=[45,55), 6=>55
 
-table(USERS$u_age, USERS$u_occupation)
 
 age_group = c('<18','[18,25)','[25,35)','[35,45)','[45,55)','≥55')
 occup_group = c('student','part-time','full-time','unemployed','retired')
@@ -60,6 +59,7 @@ barplot(table(USERS$u_age, USERS$u_occupation), beside=T, col=pal6,
         names.arg=occup_group, main='Distribution of age vs occupation groups')
 legend("topright", legend=age_group, fill=pal6, cex = 0.9,
         text.width = 3.5, y.intersp = 1.5, title='Age group')
+
 
 
 # treatment variable randomly assigned to the users
@@ -73,15 +73,19 @@ USERS$treated <- sample(0:1,num_users,replace=T)
 
 # score = u_genre_pref(1|4) 80 + u_format_pref(1) 100 + u_age(1|2) 30 - u_age(3|4|5|6) 30 
 #         + u_occupation(1|4|5) 30 - u_occupation(2|3) 30 - u_other_sub*55 + u_rating_given*50
-#         + u_sub_utilisation*130 + u_weekly_utilisation*115 + error
-# what about the subscription plan?
+#         + u_sub_utilisation*130 + u_weekly_utilisation*115 + u_plan(2) 50 + error
+# what about the subscription plan? (+) for family plan, more incentivized to resub
+#                     for treatment score: (-) for family bc incentive not enough, indiv more price sensitive
 
 # NB: coefficients arbitrarily given
-USERS[,base_score:=u_rating_given*50+u_sub_utilisation*130+u_weekly_utilisation*115-u_other_sub*55+rnorm(1)*100]
-USERS[u_genre_pref==1|u_genre_pref==4, base_score:=base_score+80]
-USERS[u_format_pref==1, base_score:=base_score+100]
-USERS[,base_score:=ifelse(u_age==1|u_age==2,base_score+30,base_score-30)] 
-USERS[,base_score:=ifelse(u_occupation==2|u_occupation==3,base_score-30,base_score+30)] 
+set.seed(10)
+USERS[, base_score := u_rating_given*50 + u_sub_utilisation*130 + u_weekly_utilisation*115
+                        - u_other_sub*55 + rnorm(1)*100] #NOTE: magnitude of the noise
+USERS[u_genre_pref==1|u_genre_pref==4, base_score := base_score+80]
+USERS[u_format_pref==1, base_score := base_score+100]
+USERS[,base_score := ifelse(u_age==1|u_age==2,base_score+30, base_score-30)] 
+USERS[,base_score := ifelse(u_occupation==2|u_occupation==3, base_score-30, base_score+30)]
+USERS[u_plan==2, base_score := base_score+50] 
 
 USERS$base_score_scaled <- scale(USERS$base_score)  #scaling the scores
 
@@ -95,21 +99,11 @@ hist(USERS$base_score_scaled, main="Distribution of users' baseline scores scale
     xlab="Baseline scores scaled", ylab="Frequency",
     xlim=range(-5,5), col='light blue')
 
-# Adding a random component to the underlying score (observable to customers but unobservable to econometricians)
-USERS$new_base_score = USERS$base_score + rnorm(1,0,50)*10
-
-# NOTE: modified size/magnitude of the noise
-
-summary(USERS$new_base_score)
-hist(USERS$new_base_score, main="Distribution of users' baseline scores modified",
-    xlab="Modified baseline scores", ylab="Frequency",
-    xlim=range(-1000,1000), col='light blue')
-
 
 
 # The impact of our policy can be divided into two components: 
 # First: an additive component independent of covariates and positive on average
-USERS[, treatment_score := ifelse(treated==1,rnorm(num_users,40,20),0)]
+USERS[, treatment_score := ifelse(treated==1, rnorm(num_users,40,20), 0)]
 summary(USERS$treatment_score)
 hist(USERS$treatment_score, main="Distribution of users' treatment scores",
     xlab="Treatment scores", ylab="Frequency", col='light blue')
@@ -117,10 +111,12 @@ hist(USERS$treatment_score, main="Distribution of users' treatment scores",
 
 
 # Second: part of the effect depends on some user's characteristics (interactions).
-# For example, #to capture the higher price sensitivity of young people and students/unemployed:
+# To capture higher price sensitivity of young people and students/unemployed
 USERS[treated==1,treatment_score:=ifelse(u_age==1|u_age==2,treatment_score+70,treatment_score)]
-USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)] 
-# We may assume we face different degrees of competition depending on the favorite genre of users: 
+USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)]
+# As well as the price sensitivity of people subscribed to individual plans
+ USERS[treated==1, treatment_score:=ifelse(u_plan==1,treatment_score+70, treatment_score)]
+# We assume we face different degrees of competition depending on the favorite genre of users: 
 USERS[treated==1,treatment_score:=ifelse(u_genre_pref==2|u_genre_pref==3,treatment_score,treatment_score+50)] 
 # Finally, a voucher would reduce multihoming costs of being subscribed to multiple platforms
 USERS[u_other_sub==1&treated==1, treatment_score:=treatment_score+60]
@@ -140,13 +136,15 @@ hist(USERS$total_score, main="Distribution of users' total scores",
 
 
 # Assign which customer will churn and which will re-subscribe (Y variable)
-# We assume that 15% of customer churn, in particular the first quantile
-threshold_churn=quantile(USERS$base_score, prob=0.15)
-USERS[, resub := ifelse(total_score>threshold_churn,1,0) ] 
-summary(USERS$resub)
+# We assume that 35% of customer churn, in particular the first quantile
+threshold_churn = quantile(USERS$base_score, prob=0.35)
+USERS[, resub := ifelse(total_score>threshold_churn,1,0)]
 
 # to create some error in the dataset, for some (100) random ids switch between 0 and 1
-# USERS[sample(USERS$u_id,100),resub:=ifelse(resub==1,0,1)]
+set.seed(10)
+perc_err = round(num_users*0.05,0)
+USERS[sample(USERS$u_id,perc_err), resub := ifelse(resub==1,0,1)]
+summary(USERS$resub)
 
 
 
@@ -240,8 +238,4 @@ hist(treatment$u_sub_utilisation, col='#CC0000',
 hist(control$u_sub_utilisation, col='#66CCFF',
         main='Distribution of service utilisation in Control',
         xlab='Subscription usage in proportion')
-
-
-# To do:
-# 1. add probability to the features about utilisation --> skewed distribution
 
