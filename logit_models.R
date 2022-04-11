@@ -7,7 +7,7 @@ listOfPackages <- list("dplyr","tidyverse","data.table","ggplot2","ggpubr",
                     "gplots","plotly","ggrepel","RColorBrewer",
                     "reshape2","margins", "tools4uplift","xgboost","grf","ggplot2","matrixStats",
                     "Rcpp","car","mltools","glmnet",
-                    "caret","mlr")
+                    "caret","mlr", "ROCR")
 
 # Uncomment the next lines if there are packages not installed yet
 # for (i in listOfPackages) {
@@ -16,37 +16,39 @@ listOfPackages <- list("dplyr","tidyverse","data.table","ggplot2","ggpubr",
 
 # packages for Data Manipulation 
 library("dplyr")
-library('tidyverse')
+# library('tidyverse')
 library("data.table")
 
 # general tools for regressions and Marginal Effects
-library("car")
-library("margins")
+# library("car")
+# library("margins")
 
-# mackages for modeling
-library("tools4uplift") #for uplift modeling
-library('xgboost') #for XGBoosting
-library("grf") #for honest causal forest
+# packages for modeling
+# library("tools4uplift") #for uplift modeling
+# library('xgboost') #for XGBoosting
+# library("grf") #for honest causal forest
 
 # miscellaneous
-library("matrixStats")
-library("reshape2")
-library("Rcpp")
-library('mltools')
-library('glmnet')
+# library("matrixStats")
+# library("reshape2")
+# library("Rcpp")
+# library('mltools')
+# library('glmnet')
 library('caret')
-library("mlr")
+# library("mlr")
+library('ROCR')
+library('pROC')
 
 # packages for Graphs and Plots
 library("ggplot2")
-library("ggpubr")
-library("gplots")
+# library("ggpubr")
+# library("gplots")
 library("plotly")
-library("ggrepel")
+# library("ggrepel")
 library("RColorBrewer")
 
 # Defining a personalized theme for ggplot
-mytheme<-theme_minimal()+theme(plot.title = element_text(hjust = 0.5))
+# mytheme<-theme_minimal()+theme(plot.title = element_text(hjust = 0.5))
 
 ###############################################################
 
@@ -118,21 +120,24 @@ USERS$treated <- sample(0:1,num_users,replace=T)
 
 # score = u_genre_pref(1|4) 80 + u_format_pref(1) 100 + u_age(1|2) 30 - u_age(3|4|5|6) 30 
 #         + u_occupation(1|4|5) 30 - u_occupation(2|3) 30 - u_other_sub*55 + u_rating_given*50
-#         + u_sub_utilisation*130 + u_weekly_utilisation*115 + error
-# what about the subscription plan?
+#         + u_sub_utilisation*130 + u_weekly_utilisation*115 + u_plan(2) 50 + error
+# what about the subscription plan? (+) for family plan, more incentivized to resub
+#                     for treatment score: (-) for family bc incentive not enough, indiv more price sensitive
 
 # NB: coefficients arbitrarily given
-USERS[,base_score:=u_rating_given*50+u_sub_utilisation*130+u_weekly_utilisation*115-u_other_sub*55+rnorm(1)*100]
-USERS[u_genre_pref==1|u_genre_pref==4, base_score:=base_score+80]
-USERS[u_format_pref==1, base_score:=base_score+100]
-USERS[,base_score:=ifelse(u_age==1|u_age==2,base_score+30,base_score-30)] 
-USERS[,base_score:=ifelse(u_occupation==2|u_occupation==3,base_score-30,base_score+30)] 
+set.seed(10)
+USERS[, base_score := u_rating_given*50 + u_sub_utilisation*130 + u_weekly_utilisation*115
+                        - u_other_sub*55 + rnorm(1)*100] #NOTE: magnitude of the noise
+USERS[u_genre_pref==1|u_genre_pref==4, base_score := base_score+80]
+USERS[u_format_pref==1, base_score := base_score+100]
+USERS[,base_score := ifelse(u_age==1|u_age==2,base_score+30, base_score-30)] 
+USERS[,base_score := ifelse(u_occupation==2|u_occupation==3, base_score-30, base_score+30)]
+USERS[u_plan==2, base_score := base_score+50] 
 
 USERS$base_score_scaled <- scale(USERS$base_score)  #scaling the scores
 
-
-
 summary(USERS$base_score)
+
 hist(USERS$base_score, main="Distribution of users' baseline scores",
     xlab="Baseline scores", ylab="Frequency",
     xlim=range(-500,1800), col='light blue')
@@ -142,19 +147,11 @@ hist(USERS$base_score_scaled, main="Distribution of users' baseline scores scale
     xlim=range(-5,5), col='light blue')
 
 
-# Adding a random component to the underlying score (observable to customers but unobservable to econometricians)
-USERS$new_base_score = USERS$base_score + rnorm(1,0,50)*10
-# NOTE: modified size/magnitude of the noise
-
-summary(USERS$new_base_score)
-hist(USERS$new_base_score, main="Distribution of users' baseline scores modified",
-    xlab="Modified baseline scores", ylab="Frequency",
-    xlim=range(-1000,1000), col='light blue')
-
 
 # The impact of our policy can be divided into two components: 
 # First: an additive component independent of covariates and positive on average
-USERS[, treatment_score := ifelse(treated==1,rnorm(num_users,40,20),0)]
+set.seed(10)
+USERS[, treatment_score := ifelse(treated==1, rnorm(num_users,40,20), 0)]
 summary(USERS$treatment_score)
 hist(USERS$treatment_score, main="Distribution of users' treatment scores",
     xlab="Treatment scores", ylab="Frequency", col='light blue')
@@ -162,14 +159,15 @@ hist(USERS$treatment_score, main="Distribution of users' treatment scores",
 
 
 # Second: part of the effect depends on some user's characteristics (interactions).
-# For example, #to capture the higher price sensitivity of young people and students/unemployed:
+# To capture higher price sensitivity of young people and students/unemployed
 USERS[treated==1,treatment_score:=ifelse(u_age==1|u_age==2,treatment_score+70,treatment_score)]
-USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)] 
-# We may assume we face different degrees of competition depending on the favorite genre of users: 
+USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)]
+# As well as the price sensitivity of people subscribed to individual plans
+ USERS[treated==1, treatment_score:=ifelse(u_plan==1,treatment_score+70, treatment_score)]
+# We assume we face different degrees of competition depending on the favorite genre of users: 
 USERS[treated==1,treatment_score:=ifelse(u_genre_pref==2|u_genre_pref==3,treatment_score,treatment_score+50)] 
 # Finally, a voucher would reduce multihoming costs of being subscribed to multiple platforms
 USERS[u_other_sub==1&treated==1, treatment_score:=treatment_score+60]
-
 
 summary(USERS$treatment_score)
 hist(USERS$treatment_score, main="Final distribution of users' treatment scores",
@@ -177,7 +175,7 @@ hist(USERS$treatment_score, main="Final distribution of users' treatment scores"
 
 
 # Sum the baseline and the treatment scores to get each user's total score
-USERS$total_score = USERS$base_score + USERS$new_base_score + USERS$treatment_score
+USERS$total_score = USERS$base_score + USERS$treatment_score
 summary(USERS$total_score)
 hist(USERS$total_score, main="Distribution of users' total scores",
     xlab="Total scores", ylab="Frequency", col='light blue')
@@ -185,17 +183,16 @@ hist(USERS$total_score, main="Distribution of users' total scores",
 
 
 # Assign which customer will churn and which will re-subscribe (Y variable)
-# We assume that 15% of customer churn, in particular the first quantile
-threshold_churn = quantile(USERS$base_score, prob=0.15)
-USERS[, resub := ifelse(total_score>threshold_churn,1,0) ] 
-
-set.seed(10)
-perc_err=round(num_users*0.05,0)
-USERS[sample(USERS$u_id,perc_err),resub:=ifelse(resub==1,0,1)]
-summary(USERS$resub)
+# We assume that 35% of customer churn, in particular the first quantile
+threshold_churn = quantile(USERS$base_score, prob=0.35)
+USERS[, resub := ifelse(total_score>threshold_churn,1,0)]
 
 # to create some error in the dataset, for some (100) random ids switch between 0 and 1
-# USERS[sample(USERS$u_id,100),resub:=ifelse(resub==1,0,1)]
+set.seed(10)
+perc_err = round(num_users*0.05,0)
+USERS[sample(USERS$u_id,perc_err), resub := ifelse(resub==1,0,1)]
+summary(USERS$resub)
+
 
 # convert categorical variables to factor 
 cat_var <- c('u_gender', 'u_occupation','u_format_pref', 'u_genre_pref', 'u_other_sub', 'u_plan')
@@ -204,7 +201,7 @@ USERS[, cat_var] <- lapply(USERS[,..cat_var] , factor)
 
 
 set.seed(10)
-DATA <- USERS %>% select( -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+DATA <- USERS %>% select( -base_score, -base_score_scaled, -treatment_score, -total_score)
 TRAIN_DATA <- DATA %>% sample_frac(.8)
 trainIndex <- TRAIN_DATA[,u_id]
 
@@ -212,32 +209,169 @@ TEST_DATA <- DATA %>% filter(!u_id %in% trainIndex)
 TRAIN_DATA <- TRAIN_DATA %>% select(-u_id)
 TEST_DATA <- TEST_DATA %>% select(-u_id)
 
-# X_train <- TRAIN_DATA %>% select(-resub, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+# X_train <- TRAIN_DATA %>% select(-resub, -base_score, -base_score_scaled, -treatment_score, -total_score)
 # y_train <- TRAIN_DATA %>% select(resub)
 
-# X_test <- TEST_DATA %>% select(-resub, -u_id, -base_score, -base_score_scaled, -new_base_score, -treatment_score, -total_score)
+# X_test <- TEST_DATA %>% select(-resub, -u_id, -base_score, -base_score_scaled, -treatment_score, -total_score)
 # y_test <- TEST_DATA %>% select(resub)
 
 
-# defining the formula for the logit model
+###### Single Logistic Regression Model #####
 features <- names(TRAIN_DATA)[1:11]
 logitformula <- paste("resub~", paste(features, collapse='+'))
 
 logit_model <- glm(formula=logitformula, data=TRAIN_DATA, family= binomial(link=logit))
+
 summary(logit_model)
-
-pred_prob <- predict(logit_model, newdata=TEST_DATA, type='response')
-summary(pred_prob)
-plot(pred_prob)
+anova(logit_model, test="Chisq") #to analyze the table of deviance
 
 
-control <- DATA %>% filter(treated==0)
-treatment <- DATA %>% filter(treated==1)
+# Prediction
+TEST_DATA$pred_prob <- predict(logit_model, newdata=TEST_DATA, type='response')
+summary(TEST_DATA$pred_prob)
+plot(TEST_DATA$pred_prob)
+TEST_DATA$pred <- ifelse(TEST_DATA$pred_prob > 0.5,1,0)
 
-# Treatment Group Logit Model
-TRAIN_T <- treatment %>% sample_frac(.8)
+# Prediction Model Evaluation 
+misClasificError <- mean(TEST_DATA$pred != TEST_DATA$resub)
+print(paste('Accuracy:', 1-misClasificError))
+
+cm <- confusionMatrix(data=factor(TEST_DATA$pred), reference = factor(TEST_DATA$resub))
+cm
+barplot(table(TEST_DATA$pred, TEST_DATA$resub), col=rainbow(2), 
+        xlab='True Y', main='Prediction Evaluation', names.arg=c(0,1), 
+        legend=T, args.legend=list(x='topleft',title='predicted', 
+        cex=0.9,text.width = 0.2, y.intersp = 1.4))
+
+# Plotting ROC curve
+p <- prediction(TEST_DATA$pred_prob, TEST_DATA$resub)
+perf <- performance(p, measure = "tpr", x.measure = "fpr")
+plot(perf)
+
+# Area under the curve (TP vs FP)
+auc <- performance(p, measure = "auc")
+auc <- auc@y.values[[1]]
+print(paste('AUC:', auc))
+
+
+
+###### Two-Model Logistic Regression (treatment vs control) #####
+CTL <- DATA %>% filter(treated==0) #control group
+TRT <- DATA %>% filter(treated==1) #treatment group
+
+
+### Treatment Group Model ###
+TRAIN_T <- TRT %>% sample_frac(.8)
 trainIndex <- TRAIN_T[,u_id]
 
-TEST_T <- DATA %>% filter(!u_id %in% trainIndex)
-TRAIN_T <- TRAIN_T %>% select(-u_id)
-TEST_T <- TEST_T %>% select(-u_id)
+TEST_T <- TRT %>% filter(!u_id %in% trainIndex)
+TRAIN_T <- TRAIN_T %>% select(-u_id, -treated)
+TEST_T <- TEST_T %>% select(-u_id, -treated)
+
+new_features <- names(TRAIN_T)[1:10]
+new_logitformula <- paste("resub~", paste(new_features, collapse='+'))
+
+# Fitting the model
+treat_logit <- glm(formula=new_logitformula, data=TRAIN_T, family= binomial(link=logit))
+summary(treat_logit)
+anova(treat_logit, test="Chisq")
+
+# Prediction
+TEST_T$pred_prob <- predict(treat_logit, newdata=TEST_T, type='response')
+summary(TEST_T$pred_prob)
+plot(TEST_T$pred_prob)
+TEST_T$pred <- ifelse(TEST_T$pred_prob > 0.5,1,0)
+
+# Evaluation
+cm <- confusionMatrix(data=factor(TEST_T$pred), reference = factor(TEST_T$resub))
+cm
+barplot(table(TEST_T$pred, TEST_T$resub), col=rainbow(2), 
+        xlab='True Y', main='Prediction Evaluation', names.arg=c(0,1), 
+        legend=T, args.legend=list(x='topleft',title='predicted', 
+        cex=0.9,text.width = 0.2, y.intersp = 1.4))
+
+# ROC curve
+p <- prediction(TEST_T$pred_prob, TEST_T$resub)
+perf <- performance(p, measure = "tpr", x.measure = "fpr")
+plot(perf)
+
+# AUC (TP vs FP)
+auc <- performance(p, measure = "auc")
+auc <- auc@y.values[[1]]
+print(paste('AUC:', auc))
+
+
+
+### Control Group Model ###
+TRAIN_C <- CTL %>% sample_frac(.8)
+trainIndex <- TRAIN_C[,u_id]
+
+TEST_C <- CTL %>% filter(!u_id %in% trainIndex)
+TRAIN_C <- TRAIN_C %>% select(-u_id, -treated)
+TEST_C <- TEST_C %>% select(-u_id, -treated)
+
+# Fitting the model
+control_logit <- glm(formula=new_logitformula, data=TRAIN_C, family= binomial(link=logit))
+summary(control_logit)
+anova(control_logit, test="Chisq")
+
+# Prediction
+TEST_C$pred_prob <- predict(control_logit, newdata=TEST_C, type='response')
+summary(TEST_C$pred_prob)
+plot(TEST_C$pred_prob)
+TEST_C$pred <- ifelse(TEST_C$pred_prob > 0.5,1,0)
+
+# Evaluation
+cm <- confusionMatrix(data=factor(TEST_C$pred), reference = factor(TEST_C$resub))
+cm
+barplot(table(TEST_C$pred, TEST_C$resub), col=rainbow(2), 
+        xlab='True Y', main='Prediction Evaluation', names.arg=c(0,1), 
+        legend=T, args.legend=list(x='topleft',title='predicted', 
+        cex=0.9,text.width = 0.2, y.intersp = 1.4))
+
+# ROC curve
+p <- prediction(TEST_C$pred_prob, TEST_C$resub)
+perf <- performance(p, measure = "tpr", x.measure = "fpr")
+plot(perf)
+
+# AUC (TP vs FP)
+auc <- performance(p, measure = "auc")
+auc <- auc@y.values[[1]]
+print(paste('AUC:', auc))
+
+
+
+##### Applying the Treatment Model on the Control Group #####
+CTL <- CTL %>% select(-u_id, -treated)
+CTL$prob_counterfac <- predict(treat_logit, newdata=CTL[, 1:10], type='response')
+CTL$counterfac <- ifelse(CTL$prob_counterfac > 0.5,1,0)
+
+# relative frequency of resub in control group
+CTL %>%
+    group_by(resub) %>%
+    summarise(n = n()) %>%
+    mutate(freq = paste(round(prop.table(n)*100, 2), '%'))
+
+# relative frequency of control group counterfactual
+CTL %>%
+    group_by(counterfac) %>%
+    summarise(n = n()) %>%
+    mutate(freq = paste(round(prop.table(n)*100, 2), '%'))
+
+
+##### Applying the Control Model on the Treatment Group #####
+TRT <- TRT %>% select(-u_id, -treated)
+TRT$prob_counterfac <- predict(control_logit, newdata=TRT[, 1:10], type='response')
+TRT$counterfac <- ifelse(TRT$prob_counterfac > 0.5,1,0)
+
+# relative frequency of resub in treatment group
+TRT %>%
+    group_by(resub) %>%
+    summarise(n = n()) %>%
+    mutate(freq = paste(round(prop.table(n)*100, 2), '%'))
+
+# relative frequency of treatment group counterfactual
+TRT %>%
+    group_by(counterfac) %>%
+    summarise(n = n()) %>%
+    mutate(freq = paste(round(prop.table(n)*100, 2), '%'))
