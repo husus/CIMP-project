@@ -74,10 +74,13 @@ u_genre_pref <- sample(1:7, num_users, replace = T)
 u_other_sub <- sample(0:1, num_users, replace = T)
 # binary variable where 0=not subscribed to other streaming platforms, 1=yes
 
+u_plan <- sample(1:2, num_users, replace = T)
+# type of subscription plan: 1=individual 2=family
+
 # creating the data table with all the users
 USERS <- data.table(u_id, u_gender, u_age, u_weekly_utilisation,
                     u_sub_utilisation, u_format_pref,
-                    u_genre_pref, u_rating_given, u_other_sub)
+                    u_genre_pref, u_rating_given, u_other_sub, u_plan)
 
 
 #USERS
@@ -106,7 +109,8 @@ USERS[,baseline_score:=u_rating_given*50+u_sub_utilisation*130+u_weekly_utilisat
 USERS[u_genre_pref==1|u_genre_pref==4, baseline_score:=baseline_score+80]
 USERS[u_format_pref==1, baseline_score:=baseline_score+100]
 USERS[,baseline_score:=ifelse(u_age==1|u_age==2,baseline_score+30,baseline_score-30)] 
-USERS[,baseline_score:=ifelse(u_occupation==2|u_occupation==3,baseline_score-30,baseline_score+30)] 
+USERS[,baseline_score:=ifelse(u_occupation==2|u_occupation==3,baseline_score-30,baseline_score+30)]
+USERS[u_plan==2, baseline_score := baseline_score+50]
 
 # Random Component of Utility (observable to customers but unobservable to the econometrician)
 USERS$baseline_score <- USERS$baseline_score + rnorm(1, 0, 70)
@@ -128,6 +132,8 @@ USERS[, treatment_score := ifelse(treated == 1, rnorm(num_users, 40, 20), 0)]
 # For example, #to capture the higher price sensitivity of young people and students/unemployed:
 USERS[treated==1,treatment_score := ifelse(u_age==1|u_age==2,treatment_score+70,treatment_score)]
 USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)] 
+# As well as the price sensitivity of people subscribed to individual plans
+ USERS[treated==1, treatment_score:=ifelse(u_plan==1,treatment_score+70, treatment_score)]
 # We may assume we face different degrees of competition depending on the favorite genre of users: 
 USERS[treated == 1,treatment_score := ifelse(u_genre_pref == 2 | u_genre_pref == 3,treatment_score, treatment_score + 50)] 
 # Finally, a voucher would reduce multihoming costs of being subscribed to multiple platforms
@@ -156,18 +162,19 @@ data <- as.data.frame(data)
 # Converting categorical variables into factors
 data <- data %>% mutate_at(
                             vars(u_gender, u_format_pref, u_genre_pref,
-                                 u_other_sub, u_occupation), funs(factor)
+                                u_other_sub, u_occupation, u_plan),
+                                funs(factor)
                             )
 
 # We also perform one hot encoding, to be used in models which do not support factors
 
 data_cat <- data %>% select(
                             u_gender, u_format_pref, u_genre_pref,
-                            u_other_sub, u_occupation
+                            u_other_sub, u_occupation, u_plan
                             )
 data_noncat <- data %>% select(
                                 -u_gender, -u_format_pref, -u_genre_pref,
-                                -u_other_sub, -u_occupation, -u_id
+                                -u_other_sub, -u_occupation, -u_id, -u_plan
                                 )
 data_oh <- one_hot(as.data.table(data_cat))
 data_oh <- cbind(data$u_id, data_oh, data_noncat)
@@ -243,7 +250,7 @@ treatment_xgbmodel <- mlr::train(
 #saving the model
 #saveRDS(treatment_xgbmodel, "xgb_treatment_model.rds")
 #to load model
-treatment_xgbmodel <- readRDS("xgb_treatment_model.rds")
+#treatment_xgbmodel <- readRDS("xgb_treatment_model.rds") for now this is the old model, but will be overwritten
 
 #creating the model for control group:
 task_ctrl <- makeClassifTask(
@@ -263,7 +270,7 @@ control_xgbmodel <- mlr::train(
 #saving the model
 #saveRDS(control_xgbmodel, "xgb_control_model.rds")
 #to load model
-control_xgbmodel <- readRDS("xgb_control_model.rds")
+#control_xgbmodel <- readRDS("xgb_control_model.rds") for now this is the old model, but will be overwritten
 
 #making treatment effect estimates on train and test data:
 train_oh$pred_T_xgb <- predict(
@@ -299,55 +306,55 @@ perf_xgb <- PerformanceUplift(
                             )
 
 barplot.PerformanceUplift(perf_xgb)
-#QiniArea(perf_xgb)
 
 # Plotting Qini curve and Qini Coeff on the test set
-qini_eval <- function(performance_eval) {
-    df <- data.frame(
-    matrix(nrow = 10, ncol = 3))
-    df[, 1] <- performance_eval[[1]]
-    df[, 2] <- round(performance_eval[[6]], 2)
-    df[, 3] <- round(performance_eval[[7]], 2)
-    colnames(df) <- c("Dec", "num.incr", "perc.incr")
-    firstrow <- numeric(3)
-    df <- rbind(firstrow, df)
-    return(df)
-}
+QiniPlot <- function (performance, modeltype) {
+  
+  #Plot qini curves (abs and %) starting from performance obejcts
+  # of Tools4Uplift Package
+  # Args
+  # performance: performance object for estimating Qini Curves
+  # modeltype: model type for filling up the title
+  
+  df <- data.frame(matrix(nrow = 10, ncol = 3))
+  df[, 1] <- performance[[1]]
+  df[, 2] <- round(performance[[6]], 2)
+  df[, 3] <- round(performance[[7]], 2)
+  colnames(df) <- c("Dec", "num.incr", "perc.incr")
+  firstrow <- numeric(3)
+  df <- rbind(firstrow, df)
 
-qini_df <- qini_eval(perf_xgb)
-
-##Plot Qini curves
-qini_curve1 <- ggplot(
-                      qini_df, aes(x = Dec, y = num.incr)
-                      ) +
-                      geom_point(color = "blue") +
-                      geom_line(color = "blue") + mytheme +
-                      labs(
-                          title = "Qini Curve (abs) - TM XGB",
-                          y = "Incr. Num. of Retained Customers",
-                          x = "Perc. of Customers Targeted"
-                          ) +
-                      scale_x_continuous(breaks = seq(0, 1, 0.1)) +
-                      geom_segment(x = 0, y = 0,
-                      xend = 1, yend = qini_df[11, 2],
-                      color = "red", linetype = "dashed", size = 0.5)
-
-qini_curve2 <- ggplot(
-                      qini_df, aes(x = Dec, y = perc.incr)
-                      ) +
-                      geom_point(color = "blue") +
-                      geom_line(color = "blue") + mytheme +
-                      labs(
-                          title = "Qini Curve - SM (XGB)",
-                          y = "Incr. % of Retained Cust",
-                          x = "Perc. of Customers Targeted"
-                          ) +
-                          xlim(0, 1) + geom_segment(
-                                                    x = 0, y = 0, xend = 1,
-                                                    yend = qini_df[11, 3],
+  # Plot Qini curves
+  qini_curve_1 <- ggplot(df,
+                        aes(x = Dec, y = num.incr)
+                        ) + geom_point(color = "blue") +
+                        geom_line(color = "blue") +
+                        mytheme + labs(title = sprintf("Qini Curve (abs) - %s",
+                                        modeltype),
+                                        y = "Incr. Numb. of Resub. Cust.",
+                                        x = "Perc. of Customers Targeted") +
+                                        scale_x_continuous(
+                                                    breaks = seq(0, 1, 0.1)) +
+                                                    geom_segment(x = 0, y = 0,
+                                                    xend = 1, yend = df[11, 2],
                                                     color = "red",
                                                     linetype = "dashed",
-                                                    size = 0.5
-                                                    )
-qini_curve1
-qini_curve2
+                                                    size = 0.5)
+  qini_curve_2 <- ggplot(df,
+                        aes(x = Dec, y = perc.incr)
+                        ) + geom_point(color = "blue") +
+                        geom_line(color = "blue") +
+                        mytheme + labs(
+                        title = sprintf("Qini Curve (perc.) - %s", modeltype),
+                        y = "Incr. % of Resub. Cust.",
+                        x = "Perc. of Customers Targeted") + xlim(0, 1) +
+                        geom_segment(x = 0, y = 0, xend = 1, yend = df[11, 3],
+                        color = "red", linetype = "dashed", size = 0.5)
+  plot_list <- list(qini_curve_1, qini_curve_2)
+  return(plot_list)
+}
+
+plot_list <- QiniPlot(performance = perf_xgb, modeltype = "XGB")
+
+plot_list[[1]]
+plot_list[[2]]
