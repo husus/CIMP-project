@@ -30,7 +30,7 @@ LassoPath_mod <- function (data, formula) {
   lambda <- glmnet.output$lambda
   path <- cbind(lambda, dimension, coeff)
   
-  path_list=list(coeff, dimension, lambda)
+  path_list=list(dimension, coeff, lambda)
   
   return(path_list)
 }
