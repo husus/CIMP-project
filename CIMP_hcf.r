@@ -206,3 +206,29 @@ mse <- data.frame(
     Causal_Forest_Loss = (y_star - tauhat_cf_test)^2)
 
 mse_summary <- describe(mse)
+
+# Confidence Intervals
+plot_htes <- function(cf_preds, ci = FALSE, z = 1.96) {
+  if (is.null(cf_preds$predictions) || NROW(cf_preds$predictions) == 0)
+    stop("cf_preds must include a matrix called 'predictions'")
+  out <- ggplot(
+    mapping = aes(
+      x = rank(cf_preds$predictions),
+      y = cf_preds$predictions
+    )
+  ) +
+    geom_point() +
+    labs(x = "Rank", y = "Estimated Treatment Effect") +
+    theme_light()
+  if (ci && NROW(cf_preds$variance.estimates) > 0) {
+    out <- out +
+      geom_errorbar(
+        mapping = aes(
+          ymin = cf_preds$predictions + z * sqrt(cf_preds$variance.estimates),
+          ymax = cf_preds$predictions - z * sqrt(cf_preds$variance.estimates)
+        ), size = 0.1
+      )
+  }
+  return(out)
+}
+plot_htes(test_pred, ci = TRUE)

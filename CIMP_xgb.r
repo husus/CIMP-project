@@ -133,7 +133,7 @@ USERS[, treatment_score := ifelse(treated == 1, rnorm(num_users, 40, 20), 0)]
 USERS[treated==1,treatment_score := ifelse(u_age==1|u_age==2,treatment_score+70,treatment_score)]
 USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)] 
 # As well as the price sensitivity of people subscribed to individual plans
- USERS[treated==1, treatment_score:=ifelse(u_plan==1,treatment_score+70, treatment_score)]
+USERS[treated==1, treatment_score:=ifelse(u_plan==1,treatment_score+70, treatment_score)]
 # We may assume we face different degrees of competition depending on the favorite genre of users: 
 USERS[treated == 1,treatment_score := ifelse(u_genre_pref == 2 | u_genre_pref == 3,treatment_score, treatment_score + 50)] 
 # Finally, a voucher would reduce multihoming costs of being subscribed to multiple platforms
@@ -182,7 +182,7 @@ colnames(data_oh)[1] <- "u_id"
 data_oh$y <- as.factor(data_oh$y)
 
 
-# Dividing our Dataset
+# Dividing our Datasets
 split <- SplitUplift(data, 0.6, c("treat", "y"))
 train <- split[[1]]
 test <- split[[2]]
