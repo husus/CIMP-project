@@ -146,7 +146,7 @@ data <- USERS %>% select(
 data <- as.data.frame(data)
 
 # Dividing our Dataset (technically train-test-validation but yeah no)
-split <- SplitUplift(data, 0.6, c("treat", "y"))
+split <- SplitUplift(data, 0.7, c("treat", "y"))
 train <- split[[1]]
 test <- split[[2]]
 
