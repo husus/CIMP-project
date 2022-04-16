@@ -65,10 +65,13 @@ u_genre_pref <- sample(1:7, num_users, replace = T)
 u_other_sub <- sample(0:1, num_users, replace = T)
 # binary variable where 0=not subscribed to other streaming platforms, 1=yes
 
+u_plan <- sample(1:2, num_users, replace = T)
+# type of subscription plan: 1=individual 2=family
+
 # creating the data table with all the users
 USERS <- data.table(u_id, u_gender, u_age, u_weekly_utilisation,
                     u_sub_utilisation, u_format_pref,
-                    u_genre_pref, u_rating_given, u_other_sub)
+                    u_genre_pref, u_rating_given, u_other_sub, u_plan)
 
 
 #USERS
@@ -98,6 +101,7 @@ USERS[u_genre_pref==1|u_genre_pref==4, baseline_score:=baseline_score+80]
 USERS[u_format_pref==1, baseline_score:=baseline_score+100]
 USERS[,baseline_score:=ifelse(u_age==1|u_age==2,baseline_score+30,baseline_score-30)] 
 USERS[,baseline_score:=ifelse(u_occupation==2|u_occupation==3,baseline_score-30,baseline_score+30)] 
+USERS[u_plan==2, baseline_score := baseline_score+50]
 
 # Random Component of Utility (observable to customers but unobservable to the econometrician)
 USERS$baseline_score <- USERS$baseline_score + rnorm(1, 0, 70)
@@ -119,6 +123,8 @@ USERS[, treatment_score := ifelse(treated == 1, rnorm(num_users, 40, 20), 0)]
 # For example, #to capture the higher price sensitivity of young people and students/unemployed:
 USERS[treated==1,treatment_score := ifelse(u_age==1|u_age==2,treatment_score+70,treatment_score)]
 USERS[treated==1,treatment_score:=ifelse(u_occupation==2|u_occupation==3|u_occupation==5,treatment_score,treatment_score+100)] 
+# As well as the price sensitivity of people subscribed to individual plans
+USERS[treated==1, treatment_score:=ifelse(u_plan==1,treatment_score+70, treatment_score)]
 # We may assume we face different degrees of competition depending on the favorite genre of users: 
 USERS[treated == 1,treatment_score := ifelse(u_genre_pref == 2 | u_genre_pref == 3,treatment_score, treatment_score + 50)] 
 # Finally, a voucher would reduce multihoming costs of being subscribed to multiple platforms
