@@ -303,6 +303,7 @@ print(paste('AUC:', auc))
 
 
 ### Control Group Model ###
+set.seed(10)
 TRAIN_C <- CTL %>% sample_frac(.8)
 trainIndex <- TRAIN_C[,u_id]
 
@@ -375,3 +376,9 @@ TRT %>%
     group_by(counterfac) %>%
     summarise(n = n()) %>%
     mutate(freq = paste(round(prop.table(n)*100, 2), '%'))
+
+
+# ToDo:
+# - add prob of resub for each user from the model
+# - compare it with the prob predicted for the counterfactual
+# - calculate and plot Qini
