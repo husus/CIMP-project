@@ -38,7 +38,7 @@ library("mlr") #for hp tuning
 
 
 # total number of users under study - Increased from 1000 to 100000 (experiment)
-num_users <- 1000 #100000
+num_users <- 10000
 
 u_id <- seq(1, num_users)
 
@@ -227,8 +227,8 @@ xgb_params <- makeParamSet(
                             )
 ctrl <- makeTuneControlRandom(maxit = 15)
 
-#set resampling strategy (CV with 10 iterations)
-resample_desc <- makeResampleDesc("CV", iters = 10)
+#set resampling strategy (CV with 5 iterations)
+resample_desc <- makeResampleDesc("CV", iters = 5)
 
 #creating the model for treatment group:
 task_treat <- makeClassifTask(
@@ -361,3 +361,4 @@ plot_list[[2]]
 
 # Qini coefficient of xgb
 Q <- QiniArea(perf_xgb)
+Q

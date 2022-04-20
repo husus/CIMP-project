@@ -29,7 +29,7 @@ mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
 # library("rpart.plot")  # Plotting trees (3.0.6)
 
 # total number of users under study - Increased from 1000 to 100000 (experiment)
-num_users <- 1000
+num_users <- 10000
 
 u_id <- seq(1, num_users)
 
@@ -219,6 +219,7 @@ mse_summary <- describe(mse)
 plot_htes <- function(cf_preds, ci = FALSE, z = 1.96) {
   if (is.null(cf_preds$predictions) || NROW(cf_preds$predictions) == 0)
     stop("cf_preds must include a matrix called 'predictions'")
+  #check if the treatment effects are heterogeneous with rank
   out <- ggplot(
     mapping = aes(
       x = rank(cf_preds$predictions),
@@ -226,7 +227,8 @@ plot_htes <- function(cf_preds, ci = FALSE, z = 1.96) {
     )
   ) +
     geom_point() +
-    labs(x = "Rank", y = "Estimated Treatment Effect") +
+    labs(x = "Rank of Estimated Treatment Effect",
+    y = "Estimated Treatment Effect") +
     theme_light()
   if (ci && NROW(cf_preds$variance.estimates) > 0) {
     out <- out +
@@ -234,7 +236,7 @@ plot_htes <- function(cf_preds, ci = FALSE, z = 1.96) {
         mapping = aes(
           ymin = cf_preds$predictions + z * sqrt(cf_preds$variance.estimates),
           ymax = cf_preds$predictions - z * sqrt(cf_preds$variance.estimates)
-        ), size = 0.1
+        ), size = 0.05
       )
   }
   return(out)
