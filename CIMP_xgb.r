@@ -358,3 +358,6 @@ plot_list <- QiniPlot(performance = perf_xgb, modeltype = "XGB")
 
 plot_list[[1]]
 plot_list[[2]]
+
+# Qini coefficient of xgb
+Q <- QiniArea(perf_xgb)

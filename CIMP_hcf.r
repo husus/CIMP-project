@@ -15,6 +15,7 @@ library("tools4uplift")
 library("grf")
 library("psych") #for describe()
 
+mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
 
 # # Miscellaneous
 # library("matrixStats")
@@ -168,16 +169,16 @@ cf <- causal_forest(
 #saveRDS(cf, "hcf_model.rds")
 #cf <- readRDS("hcf_model.rds")
 
-#prediction with out of bag
-oob_pred <- predict(cf, estimate.variance = TRUE)
+# #prediction with out of bag
+# oob_pred <- predict(cf, estimate.variance = TRUE)
 
-oob_tauhat_cf <- oob_pred$predictions
-oob_tauhat_cf_se <- sqrt(oob_pred$variance.estimates)
+# oob_tauhat_cf <- oob_pred$predictions
+# oob_tauhat_cf_se <- sqrt(oob_pred$variance.estimates)
 
-#write.csv(oob_pred, "oob_pred.csv")
+# #write.csv(oob_pred, "oob_pred.csv")
 
-#heterogeneity
-hist(oob_tauhat_cf, main = "Causal forests: out-of-bag CATE")
+# #heterogeneity
+# hist(oob_tauhat_cf, main = "Causal forests: out-of-bag CATE")
 
 #on test set
 test_pred <- predict(cf, newdata = as.matrix(test[,
@@ -187,15 +188,16 @@ test_pred <- predict(cf, newdata = as.matrix(test[,
 tauhat_cf_test <- test_pred$predictions
 tauhat_cf_test_se <- sqrt(test_pred$variance.estimates)
 
+test$tau_hcf <- tauhat_cf_test
 
-
-#variable importance
+# Variable importance
 var_imp <- c(variable_importance(cf))
 names(var_imp) <- c("u_gender", "u_age", "weekly_utilisation",
                     "u_sub_utilisation", "u_format_pref", "u_genre_pref",
-                    "u_rating_given", "u_other_sub", "u_occupation")
+                    "u_rating_given", "u_other_sub", "u_occupation", "u_plan")
 sorted_var_imp <- sort(var_imp, decreasing = TRUE)
 sorted_var_imp <- as.data.frame(sorted_var_imp)
+
 
 # Model evaluation
 # as we don't observe the true counterfactual, we will rely on the transformed outcome
@@ -238,3 +240,64 @@ plot_htes <- function(cf_preds, ci = FALSE, z = 1.96) {
   return(out)
 }
 plot_htes(test_pred, ci = TRUE)
+
+perf_hcf <- PerformanceUplift(
+                            data = test, treat = "treat",
+                            outcome = "y", prediction = "tau_hcf",
+                            equal.intervals = TRUE
+                            )
+
+#Plotting Qini curve and Qini Coeff on the test set
+QiniPlot <- function (performance, modeltype) {
+  
+  #Plot qini curves (abs and %) starting from performance obejcts
+  # of Tools4Uplift Package
+  # Args
+  # performance: performance object for estimating Qini Curves
+  # modeltype: model type for filling up the title
+  
+  df <- data.frame(matrix(nrow = 10, ncol = 3))
+  df[, 1] <- performance[[1]]
+  df[, 2] <- round(performance[[6]], 2)
+  df[, 3] <- round(performance[[7]], 2)
+  colnames(df) <- c("Dec", "num.incr", "perc.incr")
+  firstrow <- numeric(3)
+  df <- rbind(firstrow, df)
+
+  # Plot Qini curves
+  qini_curve_1 <- ggplot(df,
+                        aes(x = Dec, y = num.incr)
+                        ) + geom_point(color = "blue") +
+                        geom_line(color = "blue") +
+                        mytheme + labs(title = sprintf("Qini Curve (abs) - %s",
+                                        modeltype),
+                                        y = "Incr. Numb. of Resub. Cust.",
+                                        x = "Perc. of Customers Targeted") +
+                                        scale_x_continuous(
+                                                    breaks = seq(0, 1, 0.1)) +
+                                                    geom_segment(x = 0, y = 0,
+                                                    xend = 1, yend = df[11, 2],
+                                                    color = "red",
+                                                    linetype = "dashed",
+                                                    size = 0.5)
+  qini_curve_2 <- ggplot(df,
+                        aes(x = Dec, y = perc.incr)
+                        ) + geom_point(color = "blue") +
+                        geom_line(color = "blue") +
+                        mytheme + labs(
+                        title = sprintf("Qini Curve (perc.) - %s", modeltype),
+                        y = "Incr. % of Resub. Cust.",
+                        x = "Perc. of Customers Targeted") + xlim(0, 1) +
+                        geom_segment(x = 0, y = 0, xend = 1, yend = df[11, 3],
+                        color = "red", linetype = "dashed", size = 0.5)
+  plot_list <- list(qini_curve_1, qini_curve_2)
+  return(plot_list)
+}
+
+plot_list <- QiniPlot(performance = perf_hcf, modeltype = "HCF")
+
+plot_list[[1]]
+plot_list[[2]]
+
+# Qini coefficient of xgb
+Q <- QiniArea(perf_hcf)
