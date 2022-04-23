@@ -163,7 +163,12 @@ cf <- causal_forest(
                                   !(colnames(train) == "y")]),
                     Y = train$y,
                     W = train$treat,
-                    num.trees = num_users / 10
+                    honesty = TRUE,
+                    honesty.fraction = c(0.3, 0.4, 0.5, 0.6, 0.7),
+                    alpha = c(0.01, 0.05, 0.1, 0.15, 0.2),
+                    imbalance.penalty = c(0, 0.5, 1, 1.5),
+                    num.trees = num_users / 5,
+                    tune.parameters = "all"
                     )
 
 #saveRDS(cf, "hcf_model.rds")
@@ -303,3 +308,4 @@ plot_list[[2]]
 
 # Qini coefficient of xgb
 Q <- QiniArea(perf_hcf)
+Q
