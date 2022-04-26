@@ -1,4 +1,4 @@
-m(list = ls())
+rm(list = ls())
 options(scipen = 999)
 set.seed(10)
 
