@@ -24,7 +24,7 @@ library("data.table")
 # library("margins")
 
 # packages for modeling
-# library("tools4uplift") #for uplift modeling
+library("tools4uplift") #for uplift modeling
 # library('xgboost') #for XGBoosting
 # library("grf") #for honest causal forest
 
@@ -48,7 +48,7 @@ library("plotly")
 library("RColorBrewer")
 
 # Defining a personalized theme for ggplot
-# mytheme<-theme_minimal()+theme(plot.title = element_text(hjust = 0.5))
+mytheme<-theme_minimal()+theme(plot.title = element_text(hjust = 0.5))
 
 ###############################################################
 
@@ -134,7 +134,7 @@ USERS[,base_score := ifelse(u_age==1|u_age==2,base_score+30, base_score-30)]
 USERS[,base_score := ifelse(u_occupation==2|u_occupation==3, base_score-30, base_score+30)]
 USERS[u_plan==2, base_score := base_score+50] 
 
-USERS$base_score_scaled <- scale(USERS$base_score)  #scaling the scores
+# USERS$base_score_scaled <- scale(USERS$base_score)  #scaling the scores
 
 summary(USERS$base_score)
 
@@ -183,8 +183,8 @@ hist(USERS$total_score, main="Distribution of users' total scores",
 
 
 # Assign which customer will churn and which will re-subscribe (Y variable)
-# We assume that 35% of customer churn, in particular the first quantile
-threshold_churn = quantile(USERS$base_score, prob=0.35)
+# We assume that 45% of customer churn, in particular the first quantile
+threshold_churn = quantile(USERS$base_score, prob=0.45)
 USERS[, resub := ifelse(total_score>threshold_churn,1,0)]
 
 # to create some error in the dataset, for some (100) random ids switch between 0 and 1
@@ -201,7 +201,7 @@ USERS[, cat_var] <- lapply(USERS[,..cat_var] , factor)
 
 
 set.seed(10)
-DATA <- USERS %>% select( -base_score, -base_score_scaled, -treatment_score, -total_score)
+DATA <- USERS %>% select( -base_score, -treatment_score, -total_score)
 TRAIN_DATA <- DATA %>% sample_frac(.8)
 trainIndex <- TRAIN_DATA[,u_id]
 
@@ -261,6 +261,7 @@ TRT <- DATA %>% filter(treated==1) #treatment group
 
 
 ### Treatment Group Model ###
+set.seed(10)
 TRAIN_T <- TRT %>% sample_frac(.8)
 trainIndex <- TRAIN_T[,u_id]
 
@@ -342,8 +343,15 @@ print(paste('AUC:', auc))
 
 
 
-##### Applying the Treatment Model on the Control Group #####
-CTL <- CTL %>% select(-u_id, -treated)
+##### Model Predicted Probabilities of Resubscription per each user (FACTUAL) #####
+TRT <- TRT %>% select(-u_id)
+TRT$pred_prob <- predict(treat_logit, newdata=TRT[, 1:10], type='response')
+
+CTL <- CTL %>% select(-u_id)
+CTL$pred_prob <- predict(control_logit, newdata=CTL[, 1:10], type='response')
+
+
+##### Applying the Treatment Model on the Control Group (COUNTERFACTUAL) #####
 CTL$prob_counterfac <- predict(treat_logit, newdata=CTL[, 1:10], type='response')
 CTL$counterfac <- ifelse(CTL$prob_counterfac > 0.5,1,0)
 
@@ -361,7 +369,6 @@ CTL %>%
 
 
 ##### Applying the Control Model on the Treatment Group #####
-TRT <- TRT %>% select(-u_id, -treated)
 TRT$prob_counterfac <- predict(control_logit, newdata=TRT[, 1:10], type='response')
 TRT$counterfac <- ifelse(TRT$prob_counterfac > 0.5,1,0)
 
@@ -378,7 +385,50 @@ TRT %>%
     mutate(freq = paste(round(prop.table(n)*100, 2), '%'))
 
 
-# ToDo:
-# - add prob of resub for each user from the model
-# - compare it with the prob predicted for the counterfactual
-# - calculate and plot Qini
+# Combine into one single dataframe CTL and TRT
+two_model_data <- rbind(CTL, TRT)
+two_model_data = two_model_data[sample(1:nrow(two_model_data)), ] #shuffle rows
+
+
+##### Performance Uplift Calculation #####
+perf_two_model = PerformanceUplift(data = two_model_data, treat = "treated", outcome = "resub", 
+                            prediction = "prob_counterfac", equal.intervals = TRUE, nb.group = 10)
+perf_two_model
+
+
+# Plotting Qini curve and Qini Coeff
+QiniPlot <- function (performance, modeltype) {
+  
+  #Plot qini curves (abs and %) starting from performance obejcts
+  # of Tools4Uplift Package
+  # Args:
+  #  performance: performance object for estimating Qini Curves
+  #  modeltype: model type for filling up the title 
+  
+  df=data.frame(matrix(nrow=10, ncol=3))
+  df[,1]=performance[[1]]
+  df[,2]=round(performance[[6]],2)
+  df[,3]=round(performance[[7]],2)
+  colnames(df)=c("Dec", "num.incr", "perc.incr")
+  firstrow=numeric(3)
+  df=rbind(firstrow,df)
+  
+  # Plot Qini curves
+  qini_curve_1<-ggplot(df, aes(x=Dec, y=num.incr))+geom_point(color="blue")+geom_line(color="blue")+
+    mytheme+labs(title=sprintf("Qini Curve (abs) - %s", modeltype), y="Incr. Numb. of Resub. Cust.", x="Perc. of Customers Targeted")+
+    scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=df[11,2], color="red", 
+                                                           linetype="dashed", size=0.5)
+  
+  qini_curve_2<-ggplot(df, aes(x=Dec, y=perc.incr))+geom_point(color="blue")+geom_line(color="blue")+
+    mytheme+labs(title=sprintf("Qini Curve (perc.) - %s", modeltype), y="Incr. % of Resub. Cust.", x="Perc. of Customers Targeted")+
+    xlim(0, 1)+geom_segment(x = 0, y=0, xend=1, yend=df[11,3], color="red", 
+                            linetype="dashed", size=0.5)
+  
+  plot_list=list(qini_curve_1, qini_curve_2)
+  
+  return(plot_list)
+}
+
+plot_list = QiniPlot(performance=perf_two_model, modeltype = 'Two-Model Logit')
+plot_list[[1]]
+plot_list[[2]]
