@@ -35,6 +35,9 @@ library("mltools")
 library("glmnet")
 library("caret")
 library("mlr") #for hp tuning
+library('caret')
+library('ROCR')
+library('pROC')
 
 ## 1.0 Data Preparation ##
 
@@ -72,6 +75,10 @@ split <- SplitUplift(data, 0.7, c("treat", "y"))
 train <- split[[1]]
 test <- split[[2]]
 
+# Dividing train and test by treat and control
+train_treat <- subset(train, treat == 1)
+train_ctrl <- subset(train, treat == 0)
+
 # Reproducing the sample split on the hot encoded dataset
 split_oh <- SplitUplift(data_oh, 0.7, c("treat", "y"))
 train_oh <- as.data.frame(split_oh[[1]])
@@ -85,10 +92,59 @@ train_oh_ctrl <- subset(train_oh, treat == 0)
 features <- colnames(train)[2:(length(colnames(train)) - 2)]
 features_oh <- colnames(train_oh)[2:(length(colnames(train_oh)) - 2)]
 
+# Comparison test df across models
+df_comparison <- data.frame(test)
+
 ## 2.0 SINGLE MODEL - LOGIT ##
+logitformula <- paste("y~", paste(features, collapse = "+"))
+
+logit_model <- glm(
+    formula = logitformula,
+    data = train, family = binomial(link = logit)
+    )
+
+# Prediction
+test_logit1 <- data.frame(test)
+test_logit1$pred_prob_logit1 <- predict(
+    logit_model, newdata = test, type = "response"
+    )
+#summary(test$pred_prob_logit1)
+#plot(test$pred_prob_logit1)
+#test$pred_logit1 <- ifelse(test$pred_prob_logit1 > 0.5, 1, 0)
+
+#tau???
+# perf_logit1??
 
 
 ## 3.1 TWO MODEL - LOGIT ##
+# Fitting the model
+test_logit2 <- data.frame(test)
+
+logit_ctrl <- glm(
+    formula = logitformula,
+    data = train_ctrl, family = binomial(link = logit)
+    )
+logit_treat <- glm(
+    formula = logitformula,
+    data = train_treat, family = binomial(link = logit)
+    )
+
+# Prediction
+test_logit2$pred_prob_C_logit2 <- predict(
+    logit_ctrl, newdata = test, type = "response"
+    )
+test_logit2$pred_prob_T_logit2 <- predict(
+    logit_treat, newdata = test, type = "response"
+    )
+test_logit2$tau_logit2 <- test_logit2$pred_prob_T_logit2 - test_logit2$pred_prob_C_logit2
+#test$pred_logit2 <- ifelse(test$pred_prob > 0.5, 1, 0)
+perf_logit2 <- PerformanceUplift(
+                            data = test_logit2, treat = "treat",
+                            outcome = "y", prediction = "tau_logit2",
+                            equal.intervals = TRUE, nb.group = 10
+                            )
+# adding two model logit tau to df_comparison
+df_comparison$tau_logit2 <- test_logit2$tau_logit2
 
 
 ## 3.2 TWO MODEL - XGBOOST ##
@@ -194,6 +250,9 @@ perf_xgb <- PerformanceUplift(
                             equal.intervals = TRUE, nb.group = 10
                             )
 
+# adding two model xgb tau to df_comparison
+df_comparison$tau_xgb <- test_oh$tau_xgb
+
 ## 4.1 HONEST CAUSAL FOREST ##
 cf <- causal_forest(
                     X = as.matrix(train[, !(colnames(train) == "treat") &
@@ -212,13 +271,15 @@ cf <- causal_forest(
 #cf <- readRDS("hcf_model.rds")
 
 # On test set
-test_pred <- predict(cf, newdata = as.matrix(test[,
-                                                !(colnames(test) == "treat") &
-                                                !(colnames(test) == "y")]),
-                                                estimate.variance = TRUE)
-tauhat_cf_test <- test_pred$predictions
-tauhat_cf_test_se <- sqrt(test_pred$variance.estimates)
-test$tau_hcf <- tauhat_cf_test
+test_hcf <- data.frame(test)
+
+test_pred_hcf <- predict(cf, newdata = as.matrix(test_hcf[,
+                                            !(colnames(test_hcf) == "treat") &
+                                            !(colnames(test_hcf) == "y")]),
+                                            estimate.variance = TRUE)
+tauhat_hcf_test <- test_pred_hcf$predictions
+tauhat_hcf_test_se <- sqrt(test_pred_hcf$variance.estimates)
+test_hcf$tau_hcf <- tauhat_hcf_test
 
 # Variable importance
 var_imp <- c(variable_importance(cf))
@@ -232,8 +293,8 @@ sorted_var_imp <- as.data.frame(sorted_var_imp)
 # Model evaluation (TO BE DISCUSSED: DELETE?)
 # as we don't observe the true counterfactual, we will rely on the transformed outcome
 # https://gsbdbi.github.io/ml_tutorial/hte_tutorial/hte_tutorial.html#introduction
-p <- mean(test$treat)
-y_star <- ((test$treat - p) / (p * (1 - p))) * test$y
+p <- mean(test_hcf$treat)
+y_star <- ((test_hcf$treat - p) / (p * (1 - p))) * test$y
 
 # Compute the sample average treatment effect to use as a baseline comparison
 tauhat_sample_ate <- with(train, mean(y[treat == 1]) - mean(y[treat == 0]))
@@ -246,39 +307,41 @@ mse <- data.frame(
 mse_summary <- describe(mse)
 
 # Confidence Intervals
-plot_htes <- function(cf_preds, ci = FALSE, z = 1.96) {
-  if (is.null(cf_preds$predictions) || NROW(cf_preds$predictions) == 0)
-    stop("cf_preds must include a matrix called 'predictions'")
+plot_htes <- function(hcf_preds, ci = FALSE, z = 1.96) {
+  if (is.null(hcf_preds$predictions) || NROW(hcf_preds$predictions) == 0)
+    stop("hcf_preds must include a matrix called 'predictions'")
   #check if the treatment effects are heterogeneous with rank
   out <- ggplot(
     mapping = aes(
-      x = rank(cf_preds$predictions),
-      y = cf_preds$predictions
+      x = rank(hcf_preds$predictions),
+      y = hcf_preds$predictions
     )
   ) +
     geom_point() +
     labs(x = "Rank of Estimated Treatment Effect",
     y = "Estimated Treatment Effect") +
     theme_light()
-  if (ci && NROW(cf_preds$variance.estimates) > 0) {
+  if (ci && NROW(hcf_preds$variance.estimates) > 0) {
     out <- out +
       geom_errorbar(
         mapping = aes(
-          ymin = cf_preds$predictions + z * sqrt(cf_preds$variance.estimates),
-          ymax = cf_preds$predictions - z * sqrt(cf_preds$variance.estimates)
+          ymin = hcf_preds$predictions + z * sqrt(hcf_preds$variance.estimates),
+          ymax = hcf_preds$predictions - z * sqrt(hcf_preds$variance.estimates)
         ), size = 0.05
       )
   }
   return(out)
 }
-plot_htes(test_pred, ci = TRUE)
+plot_htes(test_pred_hcf, ci = TRUE)
 
 perf_hcf <- PerformanceUplift(
-                            data = test, treat = "treat",
+                            data = test_hcf, treat = "treat",
                             outcome = "y", prediction = "tau_hcf",
                             equal.intervals = TRUE
                             )
 
+# adding hcf tau to df_comparison
+df_comparison$tau_hcf <- test_hcf$tau_hcf
 
 ## 5.0 PERFORMANCE EVALUATION ##
 ## To do: write performance evaluation scripts and import them here
