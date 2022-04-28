@@ -37,7 +37,6 @@ library("tools4uplift") #for uplift modeling
 library('caret')
 # library("mlr")
 library('ROCR')
-library('pROC')
 
 # packages for Graphs and Plots
 library("ggplot2")
@@ -96,6 +95,7 @@ USERS$u_occupation[u_age==4|u_age==5] <- sample(c(2,3,4),nrow(USERS[u_age==4|u_a
 USERS$u_occupation[u_age==6] <- sample(c(3,5),nrow(USERS[u_age==6]),replace=T,prob=c(0.3,0.7))
 # occupation: 1=student 2=part-time 3=full-time 4=unemployed 5=retired
 # age: 1=<18 2=[18,25) 3=[25,35) 4=[35,45), 5=[45,55), 6=>55
+
 
 table(USERS$u_age, USERS$u_occupation)
 
@@ -217,41 +217,40 @@ TEST_DATA <- TEST_DATA %>% select(-u_id)
 
 
 ###### Single Logistic Regression Model #####
-features <- names(TRAIN_DATA)[1:11]
-logitformula <- paste("resub~", paste(features, collapse='+'))
+# features <- names(TRAIN_DATA)[1:11]
+# logitformula <- paste("resub~", paste(features, collapse='+'))
 
-logit_model <- glm(formula=logitformula, data=TRAIN_DATA, family= binomial(link=logit))
+# logit_model <- glm(formula=logitformula, data=TRAIN_DATA, family= binomial(link=logit))
 
-summary(logit_model)
-anova(logit_model, test="Chisq") #to analyze the table of deviance
+# summary(logit_model)
+# anova(logit_model, test="Chisq") #to analyze the table of deviance
 
+# # Prediction
+# TEST_DATA$pred_prob <- predict(logit_model, newdata=TEST_DATA, type='response')
+# summary(TEST_DATA$pred_prob)
+# plot(TEST_DATA$pred_prob)
+# TEST_DATA$pred <- ifelse(TEST_DATA$pred_prob > 0.5,1,0)
 
-# Prediction
-TEST_DATA$pred_prob <- predict(logit_model, newdata=TEST_DATA, type='response')
-summary(TEST_DATA$pred_prob)
-plot(TEST_DATA$pred_prob)
-TEST_DATA$pred <- ifelse(TEST_DATA$pred_prob > 0.5,1,0)
+# # Prediction Model Evaluation 
+# misClasificError <- mean(TEST_DATA$pred != TEST_DATA$resub)
+# print(paste('Accuracy:', 1-misClasificError))
 
-# Prediction Model Evaluation 
-misClasificError <- mean(TEST_DATA$pred != TEST_DATA$resub)
-print(paste('Accuracy:', 1-misClasificError))
+# cm <- confusionMatrix(data=factor(TEST_DATA$pred), reference = factor(TEST_DATA$resub))
+# cm
+# barplot(table(TEST_DATA$pred, TEST_DATA$resub), col=rainbow(2), 
+#         xlab='True Y', main='Prediction Evaluation', names.arg=c(0,1), 
+#         legend=T, args.legend=list(x='topleft',title='predicted', 
+#         cex=0.9,text.width = 0.2, y.intersp = 1.4))
 
-cm <- confusionMatrix(data=factor(TEST_DATA$pred), reference = factor(TEST_DATA$resub))
-cm
-barplot(table(TEST_DATA$pred, TEST_DATA$resub), col=rainbow(2), 
-        xlab='True Y', main='Prediction Evaluation', names.arg=c(0,1), 
-        legend=T, args.legend=list(x='topleft',title='predicted', 
-        cex=0.9,text.width = 0.2, y.intersp = 1.4))
+# # Plotting ROC curve
+# p <- prediction(TEST_DATA$pred_prob, TEST_DATA$resub)
+# perf <- performance(p, measure = "tpr", x.measure = "fpr")
+# plot(perf)
 
-# Plotting ROC curve
-p <- prediction(TEST_DATA$pred_prob, TEST_DATA$resub)
-perf <- performance(p, measure = "tpr", x.measure = "fpr")
-plot(perf)
-
-# Area under the curve (TP vs FP)
-auc <- performance(p, measure = "auc")
-auc <- auc@y.values[[1]]
-print(paste('AUC:', auc))
+# # Area under the curve (TP vs FP)
+# auc <- performance(p, measure = "auc")
+# auc <- auc@y.values[[1]]
+# print(paste('AUC:', auc))
 
 
 
@@ -350,7 +349,6 @@ TRT$pred_prob <- predict(treat_logit, newdata=TRT[, 1:10], type='response')
 CTL <- CTL %>% select(-u_id)
 CTL$pred_prob <- predict(control_logit, newdata=CTL[, 1:10], type='response')
 
-
 ##### Applying the Treatment Model on the Control Group (COUNTERFACTUAL) #####
 CTL$prob_counterfac <- predict(treat_logit, newdata=CTL[, 1:10], type='response')
 CTL$counterfac <- ifelse(CTL$prob_counterfac > 0.5,1,0)
@@ -387,12 +385,12 @@ TRT %>%
 
 # Combine into one single dataframe CTL and TRT
 two_model_data <- rbind(CTL, TRT)
-two_model_data = two_model_data[sample(1:nrow(two_model_data)), ] #shuffle rows
-
+two_model_data <- two_model_data[sample(1:nrow(two_model_data)), ] #shuffle rows
+two_model_data$tau <- two_model_data$pred_prob - two_model_data$prob_counterfac
 
 ##### Performance Uplift Calculation #####
-perf_two_model = PerformanceUplift(data = two_model_data, treat = "treated", outcome = "resub", 
-                            prediction = "prob_counterfac", equal.intervals = TRUE, nb.group = 10)
+perf_two_model <- PerformanceUplift(data = two_model_data, treat = "treated", outcome = "resub", 
+                            prediction = "pred_prob", equal.intervals = TRUE, nb.group = 10)
 perf_two_model
 
 
