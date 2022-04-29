@@ -138,11 +138,11 @@ sd(USERS$baseline_score)
 # Per aggiungere il rumore l'idea è quella di andare a diminuire l'R^2 della regressione sopra
 
 # Adding the Random Component of Utility
-USERS$baseline_score_noise <- USERS$baseline_score + rnorm(num_users, 0, 9.5)
+USERS$baseline_score_noise <- USERS$baseline_score + rnorm(num_users, 0, 6.5)
 #hist(USERS$baseline_score)
 summary(USERS$baseline_score_noise)
 
-USERS1$baseline_score_noise <- USERS$baseline_score + rnorm(num_users, 0, 9)
+USERS1$baseline_score_noise <- USERS$baseline_score_noise
 #hist(USERS$baseline_score)
 summary(USERS1$baseline_score_noise)
 
