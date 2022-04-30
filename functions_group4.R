@@ -286,43 +286,44 @@ MultiQiniPlots <- function (performance_models, names, ngroups=10) {
   }
   
   
-  df_abs_reshaped = reshape2::melt(df_abs, id.vars="perc_target", measure.vars=names)
+  # df_abs_reshaped = reshape2::melt(df_abs, id.vars="perc_target", measure.vars=names)
+  # 
+  # multiple_qini_abs = ggplot(data=df_abs_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
+  #   geom_point() + 
+  #   geom_line()+labs(title="Qini Curve - Comparison of Models", color='Model',
+  #                    y="Incr. Numb. of Resub. Cust.", x="Perc. of Customer Base Targeted")+
+  #   scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=df_abs[ngroups,2], color="red", 
+  #                                                          linetype="dashed", size=0.5)
+  # 
+  # 
+  # df_perc = data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
+  # colnames(df)=c('perc_target', names) 
+  # for (j in seq(1:ngroups)){
+  #   df[j,1]=round(j/ngroups, 2)}
+  # 
+  # for (i in seq(1:length(performance_models))){
+  #   performance = performance_models[[i]]
+  #   df[,(1+i)]=round(performance[[7]],2)
+  # }
+  # 
+  # emptyrow = data.frame(matrix(0, nrow=1, ncol=length(performance_models)+1))
+  # colnames(emptyrow)=c('perc_target', names) 
+  # df_perc = rbind(emptyrow, df)
+  # 
+  # 
+  # df_perc_reshaped = reshape2::melt(df_perc, id.vars="perc_target", measure.vars=names)
+  # 
+  # multiple_qini_perc = ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
+  #   geom_point() + 
+  #   geom_line()+labs(title="Qini Curve - Comparison of Models", color='Model',
+  #                    y="Incr. Perc.  Numb. of Resub. Cust.", x="Perc. of Customer Base Targeted")+
+  #   scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=df_perc[ngroups,2], color="red", 
+  #                                                          linetype="dashed", size=0.5)
+  # 
+  # plot_list=list(multiple_qini_abs, multiple_qini_perc, df_abs)
   
-  multiple_qini_abs = ggplot(data=df_abs_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
-    geom_point() + 
-    geom_line()+labs(title="Qini Curve - Comparison of Models", color='Model',
-                     y="Incr. Numb. of Resub. Cust.", x="Perc. of Customer Base Targeted")+
-    scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=df_abs[ngroups,2], color="red", 
-                                                           linetype="dashed", size=0.5)
-  
-  
-  df_perc = data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
-  colnames(df)=c('perc_target', names) 
-  for (j in seq(1:ngroups)){
-    df[j,1]=round(j/ngroups, 2)}
-  
-  for (i in seq(1:length(performance_models))){
-    performance = performance_models[[i]]
-    df[,(1+i)]=round(performance[[7]],2)
-  }
-  
-  emptyrow = data.frame(matrix(0, nrow=1, ncol=length(performance_models)+1))
-  colnames(emptyrow)=c('perc_target', names) 
-  df_perc = rbind(emptyrow, df)
-  
-  
-  df_perc_reshaped = reshape2::melt(df_perc, id.vars="perc_target", measure.vars=names)
-  
-  multiple_qini_perc = ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
-    geom_point() + 
-    geom_line()+labs(title="Qini Curve - Comparison of Models", color='Model',
-                     y="Incr. Perc.  Numb. of Resub. Cust.", x="Perc. of Customer Base Targeted")+
-    scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=df_perc[ngroups,2], color="red", 
-                                                           linetype="dashed", size=0.5)
-  
-  plot_list=list(multiple_qini_abs, multiple_qini_perc)
-  
-  return(plot_list)
+  # return(plot_list)
+  return(df_abs)
   
 }
 

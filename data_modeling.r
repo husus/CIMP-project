@@ -38,8 +38,6 @@ library("glmnet")
 library("caret")
 library("mlr") #for hp tuning
 library('caret')
-library('ROCR')
-library('pROC')
 
 # Importing Personal functions
 source('C:/Users/tommy/Desktop/CIMP/CIMP-project/functions_group4.R')
@@ -48,6 +46,8 @@ source('C:/Users/tommy/Desktop/CIMP/CIMP-project/functions_group4.R')
 
 # Import dataset
 data <- read.csv("users.csv")
+
+data_no_factor <- data
 
 # Converting categorical variables into factors
 data <- data %>% mutate_at(
@@ -155,10 +155,10 @@ df_comparison$tau_logit2 <- pred_prob_T_logit2 - pred_prob_C_logit2
 
 
 # Evaluating the performance of the model
-# perf_logit2 <- PerformanceUplift(
-#                             data = df_comparison, treat = "treat",
-#                             outcome = "y", prediction = "tau_logit2",
-#                             equal.intervals = TRUE, nb.group = 10, rank.precision = 2)
+perf_logit2 <- PerformanceUplift(
+                            data = df_comparison, treat = "treat",
+                            outcome = "y", prediction = "tau_logit2",
+                            equal.intervals = TRUE, nb.group = 10, rank.precision = 2)
 
 
 
@@ -209,10 +209,6 @@ treatment_xgbmodel <- mlr::train(
                                  task = task_treat
                                  )
 
-#saving the model
-#saveRDS(treatment_xgbmodel, "xgb_treatment_model.rds")
-#to load model
-#treatment_xgbmodel <- readRDS("xgb_treatment_model.rds") for now this is the old model, but will be overwritten
 
 #creating the model for control group:
 task_ctrl <- makeClassifTask(
@@ -229,21 +225,6 @@ control_xgbmodel <- mlr::train(
                              par.vals = tuned_params_ctrl$x), task = task_ctrl
                              )
 
-#saving the model
-#saveRDS(control_xgbmodel, "xgb_control_model.rds")
-#to load model
-#control_xgbmodel <- readRDS("xgb_control_model.rds") for now this is the old model, but will be overwritten
-
-#making treatment effect estimates on train and test data:
-# pred_T_xgb <- predict(treatment_xgbmodel, newdata = train_oh[,
-#                             !(colnames(train_oh) == "treat")]
-#                             )$data[[2]]
-# pred_C_xgb <- predict(control_xgbmodel, newdata = train_oh[,
-#                             !(colnames(train_oh) == "treat") &
-#                             !(colnames(train_oh) == "pred_T_xgb")]
-#                             )$data[[2]]
-# 
-# train_oh$tau_xgb <- train_oh$pred_T_xgb - train_oh$pred_C_xgb
 
 pred_T_xgb <- predict(treatment_xgbmodel, newdata = test_oh[,
                                 !(colnames(test_oh) == "treat")]
@@ -254,16 +235,16 @@ pred_C_xgb <- predict(control_xgbmodel, newdata = test_oh[,
                             )$data[[2]]
 
 # adding two model xgb tau to df_comparison
-df_comparison$tau_xgb <- test_oh$pred_T_xgb - test_oh$pred_C_xgb
+df_comparison$tau_xgb <- pred_T_xgb -pred_C_xgb
 
 
 # performance evaluator with performance uplift
-# perf_xgb <- PerformanceUplift(
-#                             data = df_comparison, treat = "treat",
-#                             outcome = "y", prediction = "tau_xgb",
-#                             equal.intervals = TRUE, nb.group = 10, 
-#                             rank.precision = 2
-#                             )
+perf_xgb <- PerformanceUplift(
+                            data = df_comparison, treat = "treat",
+                            outcome = "y", prediction = "tau_xgb",
+                            equal.intervals = TRUE, nb.group = 10,
+                            rank.precision = 2
+                            )
 
 #### 4. SINGLE MODEL WITH INTERACTIONS - LOGISTIC REGRESSION ####
 
@@ -308,7 +289,6 @@ best_feat_output <- BestFeatures_mod(train_oh, test_oh, treat='treat', outcome='
 
 best_features <- best_feat_output[[1]]
 best_lambda <- best_feat_output[[2]]
-best_qini <- best_feat_output[[4]]
 
 
 # Using the best features for writing the formula for our final model
@@ -351,32 +331,44 @@ df_comparison$tau_interlogit <- comparison_interlogit$tau_interlogit_baseline
 
 
 #### 5. HONEST CAUSAL FOREST ####
+
+data_no_factor <- data_no_factor %>% select ( -u_id)
+
+set.seed(10)
+split_no_factor <- SplitUplift(data_no_factor, 0.7, c("treat", "y"))
+train_no_factor <- split_no_factor[[1]]
+test_no_factor <- split_no_factor[[2]]
+
+
 cf <- causal_forest(
-                    X = as.matrix(train[, !(colnames(train) == "treat") &
-                                  !(colnames(train) == "y")]),
-                    Y = train$y,
-                    W = train$treat,
+                    X = as.matrix(train_no_factor[, !(colnames(train_no_factor) == "treat") &
+                                  !(colnames(train_no_factor) == "y")]),
+                    Y = train_no_factor$y,
+                    W = train_no_factor$treat,
                     honesty = TRUE,
                     honesty.fraction = c(0.3, 0.4, 0.5, 0.6, 0.7),
                     alpha = c(0.01, 0.05, 0.1, 0.15, 0.2),
                     imbalance.penalty = c(0, 0.5, 1, 1.5),
-                    num.trees = dim(USERS)[1] / 5,
+                    num.trees = dim(data_no_factor)[1] / 5,
                     tune.parameters = "all"
                     )
 
 #saveRDS(cf, "hcf_model.rds")
 #cf <- readRDS("hcf_model.rds")
 
-# On test set
-test_hcf <- data.frame(test)
+# On test_no_factor set
+# test_no_factor_hcf <- data.frame(test_no_factor)
 
-test_pred_hcf <- predict(cf, newdata = as.matrix(test_hcf[,
-                                            !(colnames(test_hcf) == "treat") &
-                                            !(colnames(test_hcf) == "y")]),
+test_no_factor_pred <- predict(cf, newdata = as.matrix(test_no_factor[,
+                                            !(colnames(test_no_factor) == "treat") &
+                                            !(colnames(test_no_factor) == "y")]),
                                             estimate.variance = TRUE)
-tauhat_hcf_test <- test_pred_hcf$predictions
-tauhat_hcf_test_se <- sqrt(test_pred_hcf$variance.estimates)
-test_hcf$tau_hcf <- tauhat_hcf_test
+
+tauhat_hcf_test_no_factor <- test_no_factor_pred$predictions
+tauhat_hcf_test_no_factor_se <- sqrt(test_no_factor_pred$variance.estimates)
+
+# adding hcf tau to df_comparison
+df_comparison$tau_hcf <- tauhat_hcf_test_no_factor
 
 # Variable importance
 var_imp <- c(variable_importance(cf))
@@ -387,58 +379,33 @@ sorted_var_imp <- sort(var_imp, decreasing = TRUE)
 sorted_var_imp <- as.data.frame(sorted_var_imp)
 
 
-# Model evaluation (TO BE DISCUSSED: DELETE?)
-# as we don't observe the true counterfactual, we will rely on the transformed outcome
-# https://gsbdbi.github.io/ml_tutorial/hte_tutorial/hte_tutorial.html#introduction
-p <- mean(test_hcf$treat)
-y_star <- ((test_hcf$treat - p) / (p * (1 - p))) * test$y
-
-# Compute the sample average treatment effect to use as a baseline comparison
-tauhat_sample_ate <- with(train, mean(y[treat == 1]) - mean(y[treat == 0]))
-
-# Compute test mse for all methods
-mse <- data.frame(
-    Sample_ATE_Loss = (y_star - tauhat_sample_ate)^2,
-    Causal_Forest_Loss = (y_star - tauhat_cf_test)^2)
-
-mse_summary <- describe(mse)
-
 # Confidence Intervals
-plot_htes <- function(hcf_preds, ci = FALSE, z = 1.96) {
-  if (is.null(hcf_preds$predictions) || NROW(hcf_preds$predictions) == 0)
-    stop("hcf_preds must include a matrix called 'predictions'")
-  #check if the treatment effects are heterogeneous with rank
-  out <- ggplot(
-    mapping = aes(
-      x = rank(hcf_preds$predictions),
-      y = hcf_preds$predictions
-    )
-  ) +
-    geom_point() +
-    labs(x = "Rank of Estimated Treatment Effect",
-    y = "Estimated Treatment Effect") +
-    theme_light()
-  if (ci && NROW(hcf_preds$variance.estimates) > 0) {
-    out <- out +
-      geom_errorbar(
-        mapping = aes(
-          ymin = hcf_preds$predictions + z * sqrt(hcf_preds$variance.estimates),
-          ymax = hcf_preds$predictions - z * sqrt(hcf_preds$variance.estimates)
-        ), size = 0.05
-      )
-  }
-  return(out)
-}
-plot_htes(test_pred_hcf, ci = TRUE)
+plot_htes(test_no_factor_pred, ci = TRUE)
+
+
 
 perf_hcf <- PerformanceUplift(
-                            data = test_hcf, treat = "treat",
+                            data = df_comparison , treat = "treat",
                             outcome = "y", prediction = "tau_hcf",
                             equal.intervals = TRUE
                             )
 
-# adding hcf tau to df_comparison
-df_comparison$tau_hcf <- test_hcf$tau_hcf
+#### 6.0 PERFORMANCE EVALUATION ####
+# Here we select the best performing model on the basis of the Qini coeff
+# i.e. there area under the Qini Curve
 
-## 5.0 PERFORMANCE EVALUATION ##
-## To do: write performance evaluation scripts and import them here
+perf_list <- list(perf_xgb, perf_intermodel_baseline, perf_hcf)
+
+for(perf in perf_list){
+  print(QiniArea(perf))}
+
+# Plotting Qini Curves
+qini_plots <- MultiQiniPlots(perf_list, names=c('XGB', 'InterLogit', 'HCF'))
+qini_plots[[1]]
+qini_plots[[2]]
+
+# Plotting Uplift as a function of the percentage of user base targeted
+
+uplift_plot <- MovingDifference(perf_list, names=c('XGB', 'InterLogit', 'HCF'))
+uplift_plot
+
