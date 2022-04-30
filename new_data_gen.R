@@ -256,15 +256,23 @@ final_test_formula = as.formula("resub ~ u_gender + treated + u_age + u_weekly_u
 final_test = lm(final_test_formula, data = USERS1)
 summary(final_test)
 
+
+# Removing unnecessary cols and rename a couple of vars
+
+data_export <- USERS %>% select(
+  -baseline_score, -baseline_score_noise, -treatment_score, -treatment_score_noise, -total_score, -u_weekly_utilisation_std,
+  -u_sub_utilisation_std, -u_rating_given_std) %>%
+  rename(y = resub, treat = treated)
+data_export <- as.data.frame(data_export)
+
+
 #Save USERS to .csv
-write.csv(USERS, "users.csv", row.names = FALSE)
+write.csv(data_export, "users.csv", row.names = FALSE)
 
 ### EXPLORATORY DATA ANALYSIS ####
 data = as.data.frame(USERS)
 
 list_plot=ResubPlots(data=data, vars=c('u_age','u_occupation', 'u_plan', 'u_genre_pref', 'u_other_sub'), target='resub', treat = 'treated')
 ggarrange(plotlist = list_plot[[2]])
-
-try=subset(data, u_age==3)
-table(try$resub, try$treated)
+ggarrange(plotlist = list_plot[[1]])
 
