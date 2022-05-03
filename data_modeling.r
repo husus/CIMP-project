@@ -19,7 +19,7 @@ library("RColorBrewer")
 mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
 
 
-# Package for Logit Model and Various Utils 
+# Package for Logit Model and Various Utils
 library("tools4uplift")
 
 # Package for XGBoosting
@@ -40,12 +40,12 @@ library("mlr") #for hp tuning
 library('caret')
 
 # Importing Personal functions
-source('C:/Users/tommy/Desktop/CIMP/CIMP-project/functions_group4.R')
+source('/Users/alessialin/Desktop/DSBA/4/20757 Causal Inference for Marketing/Project/CIMP-project_dev/CIMP-project/functions_group4.R')
 
 ## 1.0 Data Preparation ##
 
 # Import dataset
-data <- read.csv("users.csv")
+data <- read.csv("/Users/alessialin/Desktop/DSBA/4/20757 Causal Inference for Marketing/Project/CIMP-project_dev/CIMP-project/users.csv")
 
 data_no_factor <- data
 
@@ -82,7 +82,7 @@ data_oh$y=as.factor(data_oh$y)
 
 # Dividing our Datasets
 set.seed(10)
-split <- SplitUplift(data, 0.7, c("treat", "y"))
+split <- SplitUplift(data_no_factor, 0.7, c("treat", "y"))
 train <- split[[1]]
 test <- split[[2]]
 
@@ -110,8 +110,7 @@ summary(basic_model_ab)
 
 #Even when adding all the regressors
 
-formula_abtest <- as.formula(paste("y~ treat+", paste(features,collapse="+")))
-
+formula_abtest <- as.formula(paste("y~ treat+", paste(features, collapse="+")))
 adv_model_ab <- lm(formula_abtest, data = data)
 summary(adv_model_ab)
 
@@ -259,6 +258,7 @@ treat <- 'treat'
 comparison_interlogit <- test
 
 treat_formula <- c()
+
 for (k in seq(1:length(features))) {
   treat_formula <- paste(treat_formula, paste(features[k], treat, sep = ":"), sep="+")
 }
@@ -409,3 +409,10 @@ qini_plots[[2]]
 uplift_plot <- MovingDifference(perf_list, names=c('XGB', 'InterLogit', 'HCF'))
 uplift_plot
 
+
+df_comparison <- as.numeric(as.character(df_comparison$u_gender, df_comparison$u_age, df_comparison$u_format_pref, df_comparison$u_genre_pref,
+       df_comparison$u_other_sub, df_comparison$u_occupation, df_comparison$u_plan))
+ciao <- subset(df_comparison, select = -c(tau_logit2,tau_xgb, tau_hcf))
+hello <- as.matrix(ciao)
+heatmap(hello)
+str(df_comparison)
