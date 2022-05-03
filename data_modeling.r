@@ -40,12 +40,12 @@ library("mlr") #for hp tuning
 library('caret')
 
 # Importing Personal functions
-source('/Users/alessialin/Desktop/DSBA/4/20757 Causal Inference for Marketing/Project/CIMP-project_dev/CIMP-project/functions_group4.R')
+source('./functions_group4.R')
 
 ## 1.0 Data Preparation ##
 
 # Import dataset
-data <- read.csv("/Users/alessialin/Desktop/DSBA/4/20757 Causal Inference for Marketing/Project/CIMP-project_dev/CIMP-project/users.csv")
+data <- read.csv("./users.csv")
 
 data_no_factor <- data
 
@@ -82,7 +82,7 @@ data_oh$y=as.factor(data_oh$y)
 
 # Dividing our Datasets
 set.seed(10)
-split <- SplitUplift(data_no_factor, 0.7, c("treat", "y"))
+split <- SplitUplift(data, 0.7, c("treat", "y"))
 train <- split[[1]]
 test <- split[[2]]
 
@@ -279,12 +279,13 @@ comparison_interlogit$tau_interlogit_baseline <- interlogit_baseline_output[[2]]
 
 ##-- Model Optimization ####
 
-# Using revisited functions from package tools for uplift for extarcting 
+# Using revisited functions from package tools for uplift for extracting 
 # a set of best features
 
 my_path <- LassoPath(train, baseline_formula)
 
-best_feat_output <- BestFeatures_mod(train_oh, test_oh, treat='treat', outcome='y', predictors=features_oh, rank.precision = 2, path=my_path,
+best_feat_output <- BestFeatures_mod(train_oh, test_oh, treat='treat', outcome='y', predictors=features_oh,
+                                  rank.precision = 2, path=my_path,
                                   equal.intervals = TRUE, nb.group = 10)
 
 best_features <- best_feat_output[[1]]
@@ -408,11 +409,3 @@ qini_plots[[2]]
 
 uplift_plot <- MovingDifference(perf_list, names=c('XGB', 'InterLogit', 'HCF'))
 uplift_plot
-
-
-df_comparison <- as.numeric(as.character(df_comparison$u_gender, df_comparison$u_age, df_comparison$u_format_pref, df_comparison$u_genre_pref,
-       df_comparison$u_other_sub, df_comparison$u_occupation, df_comparison$u_plan))
-ciao <- subset(df_comparison, select = -c(tau_logit2,tau_xgb, tau_hcf))
-hello <- as.matrix(ciao)
-heatmap(hello)
-str(df_comparison)
