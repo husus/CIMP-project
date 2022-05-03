@@ -200,7 +200,7 @@ summary(testmodel_treat)
 
 #Assigning the random component. On average the TE is assumed to be positive
 # The average noise is set to around 40% of the median of the baseline utility score
-USERS[, treatment_score_noise := ifelse(treated == 1, treatment_score+rtnorm(num_users, min=0, max=Inf, mean=0.8, sd=2), 0)]
+USERS[, treatment_score_noise := ifelse(treated == 1, treatment_score+rtnorm(num_users, min=0, max=Inf, mean=0, sd=2.5), 0)]
 
 # hist(USERS$treatment_score)
 summary(USERS$treatment_score_noise)
