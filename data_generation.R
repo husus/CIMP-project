@@ -253,7 +253,8 @@ data_export <- USERS %>% select(
 data_export <- as.data.frame(data_export)
 
 # Saving USERS data frame to .csv file
-write.csv(data_export, "users.csv", row.names = FALSE)
+# (Uncomment below if want to overwrite the existing csv saved in the folder)
+# write.csv(data_export, "users.csv", row.names = FALSE)
 
 
 

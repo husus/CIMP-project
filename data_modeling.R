@@ -251,6 +251,8 @@ summary(interlogit_baseline_model)
 # Adding the estimated tau to df_comparison
 comparison_interlogit$tau_interlogit_baseline <- interlogit_baseline_output[[2]]
 
+
+
 ##-- Model Optimization ####
 
 # Using revisited functions from package tools4uplift 
@@ -340,6 +342,12 @@ tauhat_hcf_test_no_factor_se <- sqrt(test_no_factor_pred$variance.estimates)
 # Adding hcf tau to df_comparison
 df_comparison$tau_hcf <- tauhat_hcf_test_no_factor
 
+
+# Now that the df_comparison is complete, save the comparison df as .csv 
+# (Uncomment below if want to overwrite the existing csv saved in the folder)
+# write.csv(df_comparison, "comparison_data.csv", row.names = FALSE)
+
+
 # Variable importance
 var_imp <- c(variable_importance(cf))
 names(var_imp) <- c("u_gender", "u_age", "weekly_utilisation",
@@ -353,7 +361,7 @@ sorted_var_imp <- as.data.frame(sorted_var_imp)
 plot_htes(test_no_factor_pred, ci = TRUE) #personal function
 
 
-
+# Performance Uplift
 perf_hcf <- PerformanceUplift( data = df_comparison , treat = "treat",
                                 outcome = "y", prediction = "tau_hcf",
                                 equal.intervals = TRUE
@@ -380,5 +388,24 @@ uplift_plot <- MovingDifference(perf_list, names=c('XGB', 'InterLogit', 'HCF')) 
 uplift_plot
 
 
-# Saving the comparison df as .csv 
-write.csv(df_comparison, "comparison_data.csv", row.names = FALSE)
+
+# From the plots and the Qini coefficient, we conclude that 
+# the intermodel logit is the best performing model for our use case.
+# At this point we fit the chosen model on the whole initial dataset 
+# so to get the predictions and the tau
+interlogit_final <- InterModel.logit(baseline_formula, data, data, treat='treat', outcome='y')
+
+interlogit_final_model <- interlogit_final[[1]]
+print(interlogit_final_model)
+summary(interlogit_final_model)
+
+# Adding the estimated tau to df_comparison
+data_finale <- data
+data_finale$tau_interlogit_baseline <- interlogit_final[[2]]
+
+
+# Saving the full dataset with the interlogit model estimation in a csv file
+# (Uncomment below if want to overwrite the existing csv saved in the folder)
+# write.csv(data_finale, "full_data_logit.csv", row.names = FALSE)
+
+
