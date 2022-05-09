@@ -1,5 +1,5 @@
-# This module includes the functions we used for our group project and should
-# be imported before running our code
+# This module includes the functions we used for our group project 
+# and should be imported before running our code
 
 
 #### FUNCTIONS FOR DATA GENERATION ####
@@ -18,70 +18,66 @@ rtnorm <- function(n, mean = 0, sd = 1, min = 0, max = 1) {
 
 # Function for creating plot showing different resub rates across the 
 # different categories of a categorical variable
-ResubPlots = function(data, vars, target, treat){
+ResubPlots <- function(data, vars, target, treat){
   
-  #Args:
+  # Args:
   #   data: dataset for the analysis
   #   vars: list of categorical variables for which we need to 
   #   evaluate differences in resub rates
   #   target: name of target variable in the data
   #   treat: name of treatment variable in the data
   #   
-  # Returns:
+  # Return:
   #   List of lists containing various graphs
   
-  plot_list=list()
-  plot_uplift=list()
-  plot_groups=list()
-  
-  # TODO aggiungere labels
+  plot_list<-list()
+  plot_uplift<-list()
+  plot_groups<-list()
   
   
   for(j in seq(1, length(vars))){
     
-    values=unique(data[, vars[j]])
-    data_plot=data.frame(matrix(nrow=length(values), ncol=4))
-    colnames(data_plot)=c("category", "treated", "untreated", "uplift")
-    k=1
+    values <- unique(data[, vars[j]])
+    data_plot <- data.frame(matrix(nrow=length(values), ncol=4))
+    colnames(data_plot) <- c("category", "treated", "untreated", "uplift")
+    k<-1
     
     for (i in seq(1, length(values))){
-      data_plot[i,1]=values[i]
-      data_sub_t=data[data[,vars[j]]==values[i]&data[,treat]==1,]
-      data_sub_c=data[data[,vars[j]]==values[i]&data[,treat]==0,]
-      data_plot[i,2]=round(as.numeric(table(data_sub_t[,target])/length(data_sub_t[,target]))[2],4)
-      data_plot[i,3]=round(as.numeric(table(data_sub_c[,target])/length(data_sub_c[,target]))[2],4)
-      data_plot[i,4]=data_plot[i,2]-data_plot[i,3]
+      data_plot[i,1] <- values[i]
+      data_sub_t<-data[data[,vars[j]]==values[i]&data[,treat]==1,]
+      data_sub_c<-data[data[,vars[j]]==values[i]&data[,treat]==0,]
+      data_plot[i,2]<-round(as.numeric(table(data_sub_t[,target])/length(data_sub_t[,target]))[2],4)
+      data_plot[i,3]<-round(as.numeric(table(data_sub_c[,target])/length(data_sub_c[,target]))[2],4)
+      data_plot[i,4]<-data_plot[i,2]-data_plot[i,3]
     }
     
-    data_plot$category=factor(data_plot$category)
-    pup=ggplot(data=data_plot, aes(x=category, y=uplift)) +
-      geom_bar(stat='identity', col='black', fill='#E50914')+labs(title=sprintf("Uplift Across %s Categories", vars[j]), 
-                                     y="Uplift (%)", x=sprintf("%s Categories", vars[j]) )
+    data_plot$category <- factor(data_plot$category)
+    pup <- ggplot(data=data_plot, aes(x=category, y=uplift)) +
+      geom_bar(stat='identity', col='black', fill='#E50914', alpha=0.7)+labs(title=sprintf("Uplift Across %s Categories", vars[j]), 
+                                                                             y="Uplift (%)", x=sprintf("%s Categories", vars[j]) )+mytheme
     plot_uplift[[j]]=pup
     
     data.m <- reshape2::melt(data_plot, id.vars='category')
-    pgr=ggplot(data.m, aes(category, value)) + geom_bar(aes(fill = variable), 
-                                                        width = 0.4, position = position_dodge(width=0.5), stat="identity") +
-      labs(title=sprintf("Uplift Across %s Categories", vars[j]), 
-           y="Perc. of Resubscribing Users", x=sprintf("%s Categories", vars[j]) )
-    #                                         + scale_x_discrete(labels = labels[[j]])
+    pgr <- ggplot(data.m, aes(category, value)) + 
+            geom_bar(aes(fill = variable), width = 0.4, 
+                    position = position_dodge(width=0.5), stat="identity") +
+            labs(title=sprintf("Uplift Across %s Categories", vars[j]), 
+                 y="Perc. of  Resub", x=sprintf("%s Categories", vars[j]) ) +
+            mytheme + scale_fill_manual(values = c("#E50914", "#000000", "#564d4d"))
     
-    
-    plot_groups[[j]]=pgr
+    plot_groups[[j]] <- pgr
     
   }
   
-  plot_list[[1]]=plot_uplift
-  plot_list[[2]]=plot_groups
+  plot_list[[1]] <- plot_uplift
+  plot_list[[2]] <- plot_groups
   
   return(plot_list)
 }
 
 
+
 #### FUNCTIONS FOR ESTIMATING MODELS ####
-
-
-  
 
 InterModel.logit <- function ( formula, train, test, treat, outcome, lambda=NULL) {
     
@@ -92,12 +88,12 @@ InterModel.logit <- function ( formula, train, test, treat, outcome, lambda=NULL
     #   treat: treatment
     #   outcome: our outcome wrt the treatment effect is evaluated
     #   
-    # Returns:
-    #   A list with the non penalized logit model estimated the train set,
-    #  the penalized logit model estimated on the train set if lambda is provided,
-    # and two arrays of estimated individual treatment effects for observations in the test set.
+    # Return:
+    #   A list with the non-penalized logit model estimated the train set,
+    #   the penalized logit model estimated on the train set if lambda is provided,
+    #   and two arrays of estimated individual treatment effects for observations in the test set.
     
-    logitmodel=glm(formula, train, family=binomial(link=logit))
+    logitmodel <- glm(formula, train, family=binomial(link=logit))
     
     data1 <- test
     data1['treat'] <- 1
@@ -107,10 +103,10 @@ InterModel.logit <- function ( formula, train, test, treat, outcome, lambda=NULL
     data0['treat'] <- 0
     pred_y1_ct0 <- predict.glm(logitmodel, newdata=data0, type="response")
     
-    est_tau<- pred_y1_ct1 - pred_y1_ct0
+    est_tau <- pred_y1_ct1 - pred_y1_ct0
     
     if( is.null(lambda)){
-      output=list(logitmodel, est_tau)
+      output <- list(logitmodel, est_tau)
     }
     else{
       
@@ -128,34 +124,30 @@ InterModel.logit <- function ( formula, train, test, treat, outcome, lambda=NULL
       
       est_tau_pen <- pred_y1_ct1_pen - pred_y1_ct0_pen
       
-      output=list(logitmodel, est_tau, logitmodel_pen, est_tau_pen)
+      output <- list(logitmodel, est_tau, logitmodel_pen, est_tau_pen)
     }
     
-    
-    
     return(output)
-    
 }
   
 
 BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.precision = 2, path, 
                                equal.intervals = FALSE, nb.group = 10) {
-     #  This functions was adapted from the package Tools4Uplift (Belbahri, 2019).
-     #  From a theortical standpoint there are no differences. Practically, 
-     #  we have twisted a couple of things for a better fit with our needs (for example 
-     #  starting with already split train and test instead of creating them inside 
-     #  the function)
-     #  Args:
+     # This functions was adapted from the package Tools4Uplift (Belbahri, 2019).
+     # From a theoretical standpoint there are no differences.  
+     # Practically, we have twisted a couple of things for a better fit with our needs  
+     # (for example starting with already split train and test instead of  
+     # creating them inside the function)
+     # Args:
      #  train: train set
      #  test: test set
      #  path: Lasso Path created by using the dedicated function
-     #  All the other arguments are the same as in the original version of the 
-     #  function
+     # All the other arguments are the same as in the original version of the 
+     # function
      #   
      # Returns:
      #  A list with the estimated logit model (on the train set) and an array of
      #  estimated individual treatment effects for observations in the test set.
-  
 
     
     path <- path[!duplicated(path[,"dimension"]), ]
@@ -168,8 +160,8 @@ BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.pre
       features <- features[features != 0]
       
       # Fit the logistic regression model with selected features only
-      form<-as.formula(paste("y~", paste(names(features), collapse="+")))
-      lambda.model=glm(formula=form, data=train, family=binomial(link=logit))
+      form <- as.formula(paste("y~", paste(names(features), collapse="+")))
+      lambda.model <- glm(formula=form, data=train, family=binomial(link=logit))
       data1 <- test; data1[treat] <- 1
       pr.y1_ct1 <- predict.glm(lambda.model, newdata=data1, type="response")
       
@@ -178,8 +170,6 @@ BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.pre
       
       test$lambda.pred <- pr.y1_ct1 - pr.y1_ct0
       
-      #test$lambda.pred <-predict.InterUplift(lambda.model, test, treat)
-      
       lambda.perf <- PerformanceUplift(test, treat, outcome, 
                                        "lambda.pred", 
                                        rank.precision = rank.precision, 
@@ -187,7 +177,6 @@ BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.pre
                                        nb.group = nb.group)
       if (length(lambda.perf[[1]]) == 1) { lambda.qini[k] <- 0}
       else {lambda.qini[k] <- QiniArea(lambda.perf)}
-      
     }
     
     best.model <- cbind(path[, c(1, 2)], lambda.qini)
@@ -195,6 +184,7 @@ BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.pre
     if (max(best.model[,3]) == 0) { 
       warning("All models result in a Qini coefficient equal to 0. Please check LassoPath().")
     }
+    
     # Take the model that maximizes the qini coefficient
     max.qini <- which.max(best.model[,3])
     best.qini <-best.model[max.qini,3]
@@ -215,28 +205,26 @@ BestFeatures_mod <- function ( train, test, treat, outcome, predictors, rank.pre
 
 #### FUNCTIONS FOR DIAGNOSTICS ####
 
-
 QiniPlot <- function (performance, modeltype, ngroups=10) {
   
-  # Plot qini curves (abs and %) starting from performance obejcts
-  # of Tools4Uplift Package
-  # Args
-  # performance: performance object for estimating Qini Curves
-  # ngorups: number of groups for computing performance
-  # modeltype: model type for filling up the title 
+  # Plot qini curves (in absolute value and percentage) starting from performance 
+  # objects of Tools4Uplift Package
+  # Args:
+  #  performance: performance object for estimating Qini Curves
+  #  ngroups: number of groups for computing performance
+  #  modeltype: model type for filling up the title 
   #    
   # Returns:
-  # List containing two qini curves (abs and relative)
+  #  List containing two qini curves (abs and relative)
   
   
-  df=data.frame(matrix(nrow=ngroups, ncol=3))
+  df <- data.frame(matrix(nrow=ngroups, ncol=3))
   df[,1]=performance[[1]]
   df[,2]=round(performance[[6]],2)
   df[,3]=round(performance[[7]],2)
-  colnames(df)=c("perc_target", "num.incr", "perc.incr")
-  firstrow=numeric(3)
-  df=rbind(firstrow,df)
-  
+  colnames(df) <- c("perc_target", "num.incr", "perc.incr")
+  firstrow <- numeric(3)
+  df <- rbind(firstrow,df)
   
   
   # Plot Qini curves
@@ -250,7 +238,7 @@ QiniPlot <- function (performance, modeltype, ngroups=10) {
     xlim(0, 1)+geom_segment(x = 0, y=0, xend=1, yend=df[11,3], color="red", 
                             linetype="dashed", size=0.5)
   
-  plot_list=list(qini_curve_1, qini_curve_2)
+  plot_list<-list(qini_curve_1, qini_curve_2)
   
   return(plot_list)
 }
@@ -259,104 +247,113 @@ QiniPlot <- function (performance, modeltype, ngroups=10) {
 
 MultiQiniPlots <- function (performance_models, names, ngroups=10) {
   
-  #Plot multiple qini curves (abs and %) starting from a list of performance objects
-  # of Tools4Uplift Package
-  # Args
-  # performance_models: list of performance objects
-  # names: names of the models in the same order as they were listed
-  # ngorups: number of groups for computing performance
-  # Return
-  # plot_list = a list of Qini Plots
+  # Plot qini curves (in absolute value and percentage) starting from  
+  # performance objects of Tools4Uplift Package
+  # Args:
+  #  performance_models: list of performance objects
+  #  names: names of the models in the same order as they were listed
+  #  ngroups: number of groups for computing performance
+  #    
+  # Returns:
+  #  plot_list: a list of Qini Plots
   
   
-  df = data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
-  colnames(df)=c('perc_target', names) 
+  df <- data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
+  colnames(df) <- c('perc_target', names) 
   for (j in seq(1:ngroups)){
-    df[j,1]=round(j/ngroups, 2)}
+    df[j,1] <- round(j/ngroups, 2)}
   
   for (i in seq(1:length(performance_models))){
-    performance = performance_models[[i]]
-    df[,(1+i)]=round(performance[[6]],2)
-    y_end = performance[[6]][[10]]
-    emptyrow = data.frame(matrix(0, nrow=1, ncol=length(performance_models)+1))
-    colnames(emptyrow)=c('perc_target', names) 
-    df_abs = rbind(emptyrow, df)
+    performance <- performance_models[[i]]
+    df[,(1+i)] <- round(performance[[6]],2)
+    y_end <- performance[[6]][[10]]
+    emptyrow <- data.frame(matrix(0, nrow=1, ncol=length(performance_models)+1))
+    colnames(emptyrow) <- c('perc_target', names) 
+    df_abs <- rbind(emptyrow, df)
     
     
   }
   
   
-  df_abs_reshaped = reshape2::melt(df_abs, id.vars="perc_target", measure.vars=names)
+  df_abs_reshaped <- reshape2::melt(df_abs, id.vars="perc_target", measure.vars=names)
 
-  multiple_qini_abs = ggplot(data=df_abs_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
+  multiple_qini_abs <- ggplot(data=df_abs_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
     geom_point() +
-    geom_line()+labs(title="Qini Curve - Comparison of Models", color='Model',
-                     y="Incremental Numbber of Resubscribed Customers", x="Perc. of Customer Base Targeted")+
-    scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=y_end, color="black",
-                                                           linetype="dashed", size=0.5)+mytheme
+    geom_line()+
+    labs(title="Qini Curve - Comparison of Models", color='Model',
+                    y="Incremental Numbber of Resubscribed Customers",
+                    x="Perc. of Customer Base Targeted")+
+    scale_x_continuous(breaks=seq(0, 1, 0.1))+
+    geom_segment(x = 0, y=0, xend=1, yend=y_end, color="black",linetype="dashed", size=0.5)+
+    mytheme
 
 
-  df_perc = data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
-  colnames(df)=c('perc_target', names)
+  df_perc <- data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
+  colnames(df) <- c('perc_target', names)
   for (j in seq(1:ngroups)){
     df[j,1]=round(j/ngroups, 2)}
-    y_end = performance[[7]][[10]]
+    y_end <- performance[[7]][[10]]
   for (i in seq(1:length(performance_models))){
-    performance = performance_models[[i]]
+    performance <- performance_models[[i]]
     
-    df[,(1+i)]=round(performance[[7]],2)
+    df[,(1+i)] <- round(performance[[7]],2)
   }
 
-  emptyrow = data.frame(matrix(0, nrow=1, ncol=length(performance_models)+1))
-  colnames(emptyrow)=c('perc_target', names)
-  df_perc = rbind(emptyrow, df)
+  emptyrow <- data.frame(matrix(0, nrow=1, ncol=length(performance_models)+1))
+  colnames(emptyrow) <- c('perc_target', names)
+  df_perc <- rbind(emptyrow, df)
 
 
-  df_perc_reshaped = reshape2::melt(df_perc, id.vars="perc_target", measure.vars=names)
+  df_perc_reshaped <- reshape2::melt(df_perc, id.vars="perc_target", measure.vars=names)
 
-  multiple_qini_perc = ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
+  multiple_qini_perc <- ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value, colour=variable, group=variable)) +
     geom_point() +
-    geom_line()+labs(title="Qini Curve - Comparison of Models", color='Model',
-                     y="Incremental Perc.  Number of Resubscribed Custumores", x="Perc. of Customer Base Targeted")+
-    scale_x_continuous(breaks=seq(0, 1, 0.1))+geom_segment(x = 0, y=0, xend=1, yend=y_end, color="black",
-                                                           linetype="dashed", size=0.5)+mytheme
+    geom_line()+
+    labs(title="Qini Curve - Comparison of Models", color='Model',
+                    y="Incremental Perc.  Number of Resubscribed Custumores",
+                    x="Perc. of Customer Base Targeted")+
+    scale_x_continuous(breaks=seq(0, 1, 0.1))+
+    geom_segment(x = 0, y=0, xend=1, yend=y_end, color="black",linetype="dashed", size=0.5)+
+    mytheme
 
-  plot_list=list(multiple_qini_abs, multiple_qini_perc)
+  plot_list <- list(multiple_qini_abs, multiple_qini_perc)
   return(plot_list)
   
 }
 
 
 
-MovingDifference<-function(performance_models, names, ngroups=10){
+MovingDifference <- function(performance_models, names, ngroups=10){
   
-  # Plot the difference in y between treated and untreated units against the 
-  # percentage of user base targeted starting from a list of performance objects
-  # of Tools4Uplift Package
-  # Args
-  # performance_models: list of performance objects
-  # names: names of the models in the same order as they were listed
-  # ngrups: number of groups for computing performance
-  # Return
-  # plot = a plot showing how the estimated treatment effect changes 
-  #       when we increase the % of population targeted
+  # Plot the difference in y between treated and untreated units against the % of user
+  # base targeted starting from a list of performance objects of Tools4Uplift package
+  # Args:
+  #  performance_models: list of performance objects
+  #  names: names of the models in the same order as they were listed
+  #  ngroups: number of groups for computing performance
+  # Return:
+  #  plot: a plot showing how the estimated treatment effect changes 
+  #        when we increase the % of population targeted
   
-  df = data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
-  colnames(df)=c('perc_target', names) 
+  df <- data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
+  colnames(df) <- c('perc_target', names) 
   for (j in seq(1:ngroups)){
-    df[j,1]=round(j/ngroups, 2)}
+    df[j,1] <- round(j/ngroups, 2)}
   
   for (i in seq(1:length(performance_models))){
     for(j in seq(1:ngroups)){
-      df[j, i+1]=performance_models[[i]][[2]][j]/performance_models[[i]][[3]][j]-performance_models[[i]][[4]][j]/performance_models[[i]][[5]][j]
+      df[j, i+1] <- performance_models[[i]][[2]][j]/performance_models[[i]][[3]][j]-performance_models[[i]][[4]][j]/performance_models[[i]][[5]][j]
     }
   }
   
-  df_perc_reshaped = reshape2::melt(df, id.vars="perc_target", measure.vars=names)
+  df_perc_reshaped <- reshape2::melt(df, id.vars="perc_target", measure.vars=names)
   
-  plot  = ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value*100, colour=variable, group=variable)) +
-    geom_point() + geom_line() + labs(title="Uplift vs % Customer Base Targeted", fill='Model', color='Model',
-                                      y='ATE (pp)', x='Perc. of Customer Base Targeted')+mytheme+scale_x_continuous(breaks=seq(0, 1, 0.1))
+  plot <- ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value*100, colour=variable, group=variable)) +
+    geom_point() + geom_line(size=0.7, color="#E20812") + labs(title="Uplift vs % Customer Base Targeted", fill='Model', color='Model',
+                                                               y='Uplift (pp)', x='Perc. of Customer Base Targeted')+mytheme+theme(legend.position="none")+scale_x_continuous(breaks=seq(0, 1, 0.1))+
+    geom_segment(x = 0.1, y=8.9, xend=1, yend=8.9, color="black",
+                 linetype="dashed", size=0.5)
+  
   
   
   return(plot)
@@ -371,27 +368,21 @@ plot_htes <- function(hcf_preds, ci = FALSE, z = 1.96) {
     stop("hcf_preds must include a matrix called 'predictions'")
   #check if the treatment effects are heterogeneous with rank
   out <- ggplot(
-    mapping = aes(
-      x = rank(hcf_preds$predictions),
-      y = hcf_preds$predictions
-    )
-  ) +
-    geom_point() +
+          mapping = aes(x = rank(hcf_preds$predictions),y = hcf_preds$predictions)
+    ) + geom_point() +
     labs(x = "Rank of Estimated Treatment Effect",
          y = "Estimated Treatment Effect") +
     theme_light()
   if (ci && NROW(hcf_preds$variance.estimates) > 0) {
-    out <- out +
-      geom_errorbar(
-        mapping = aes(
-          ymin = hcf_preds$predictions + z * sqrt(hcf_preds$variance.estimates),
-          ymax = hcf_preds$predictions - z * sqrt(hcf_preds$variance.estimates)
+    out <- out + geom_errorbar(
+          mapping = aes(
+            ymin = hcf_preds$predictions + z * sqrt(hcf_preds$variance.estimates),
+            ymax = hcf_preds$predictions - z * sqrt(hcf_preds$variance.estimates)
         ), alpha = 0.1
       )
   }
   return(out)
 }
-
 
 
 
