@@ -7,21 +7,22 @@ library("dplyr")
 library("tidyverse")
 library("data.table")
 
-# Stuff for Graphs and Plots
+# Packages for Graphs and Plots
 library("ggplot2")
 library("ggpubr")
 library("gplots")
 library("plotly")
 library("ggrepel")
 library("RColorBrewer")
-# Package for Logit Model and Various Utils 
+# Defining a personalized theme for ggplot based on a default theme
+mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
+
+# Package for Uplift Modeling
 library("tools4uplift")
 
 # Importing personal functions
 source('./functions.R')
 
-# Defining a personalized theme for ggplot based on a default theme
-mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
 
 
 
