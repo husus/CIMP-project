@@ -17,13 +17,13 @@ library("RColorBrewer")
 # Package for Logit Model and Various Utils 
 library("tools4uplift")
 
-
+# Importing personal functions
+source('./functions.R')
 
 # Defining a personalized theme for ggplot based on a default theme
 mytheme <- theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
 
-# Importing personal functions
-source('./functions.R')
+
 
 #### Data Preparation ####
 
@@ -33,14 +33,14 @@ df_comparison <- read.csv("./comparison_data.csv")
 
 
 
-kde = ggplot(finale) + 
+kde <- ggplot(finale) + 
   geom_density(aes(x=tau_interlogit), color='black', fill="#E20812" , alpha=0.7) +
   mytheme + labs(fill="", title='KDE of Estiamted Individual Treatment Effects', x='Estimated ITE')
 
 kde
 
 
-barplot = ggplot(data=finale, aes(x=tau_interlogit)) +
+barplot <- ggplot(data=finale, aes(x=tau_interlogit)) +
   geom_histogram(position = 'identity', alpha=0.7, bins=30,  fill="#E20812", col='black' ) +
   mytheme +
   labs(fill="", title='Barplot of Estimated Individual Treatment Effects', x='Estimated ITE')
@@ -67,6 +67,7 @@ for(perf in perf_list){
   print(QiniArea(perf))}
 
 
+
 # Plotting Qini Curves
 qini_plots <- MultiQiniPlots(perf_list, names=c('InterLogit', 'XGB', 'HCF'))
 qini_plots[[1]]
@@ -74,6 +75,7 @@ qini_plots[[2]]
 
 uplift_plot <- MovingDifference(perf_list,  names=c('InterLogit', 'XGB', 'HCF'))
 uplift_plot
+
 
 
 MovingDifference_mod <- function(performance_models, names, ngroups=10){
@@ -88,20 +90,20 @@ MovingDifference_mod <- function(performance_models, names, ngroups=10){
   #  plot: a plot showing how the estimated treatment effect changes 
   #        when we increase the % of population targeted
   
-  df = data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
-  colnames(df)=c('perc_target', names) 
+  df <- data.frame(matrix(nrow=ngroups, ncol=length(performance_models)+1))
+  colnames(df) <- c('perc_target', names) 
   for (j in seq(1:ngroups)){
-    df[j,1]=round(j/ngroups, 2)}
+    df[j,1] <- round(j/ngroups, 2)}
   
   for (i in seq(1:length(performance_models))){
     for(j in seq(1:ngroups)){
-      df[j, i+1]=performance_models[[i]][[2]][j]/performance_models[[i]][[3]][j]-performance_models[[i]][[4]][j]/performance_models[[i]][[5]][j]
+      df[j, i+1] <- performance_models[[i]][[2]][j]/performance_models[[i]][[3]][j]-performance_models[[i]][[4]][j]/performance_models[[i]][[5]][j]
     }
   }
   
-  df_perc_reshaped = reshape2::melt(df, id.vars="perc_target", measure.vars=names)
+  df_perc_reshaped <- reshape2::melt(df, id.vars="perc_target", measure.vars=names)
   
-  plot  = ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value*100, colour=variable, group=variable)) +
+  plot <- ggplot(data=df_perc_reshaped, aes(x=perc_target, y=value*100, colour=variable, group=variable)) +
     geom_point() + geom_line(size=0.7, color="#E20812") + labs(title="Uplift vs % Customer Base Targeted", fill='Model', color='Model',
                                       y='Uplift (pp)', x='Perc. of Customer Base Targeted')+mytheme+theme(legend.position="none")+scale_x_continuous(breaks=seq(0, 1, 0.1))+
                                        geom_segment(x = 0.1, y=8.9, xend=1, yend=8.9, color="black",
@@ -116,6 +118,7 @@ perf_list <- list(perf_intermodel)
 
 uplift_plot <- MovingDifference_mod(perf_list, names=c( 'InterLogit'))
 uplift_plot
+
 
 
 ggplot(finale, aes(x=as.factor(u_other_sub), y=tau_interlogit)) + 
@@ -185,17 +188,17 @@ ResubPlots <- function(data, vars, target, treat){
   # Return:
   #   List of lists containing various graphs
   
-  plot_list=list()
-  plot_uplift=list()
-  plot_groups=list()
+  plot_list<-list()
+  plot_uplift<-list()
+  plot_groups<-list()
   
   
   for(j in seq(1, length(vars))){
     
-    values=unique(data[, vars[j]])
-    data_plot=data.frame(matrix(nrow=length(values), ncol=4))
-    colnames(data_plot)=c("category", "treated", "untreated", "uplift")
-    k=1
+    values <- unique(data[, vars[j]])
+    data_plot <- data.frame(matrix(nrow=length(values), ncol=4))
+    colnames(data_plot) <- c("category", "treated", "untreated", "uplift")
+    k<-1
     
     for (i in seq(1, length(values))){
       data_plot[i,1]=values[i]
@@ -206,7 +209,7 @@ ResubPlots <- function(data, vars, target, treat){
       data_plot[i,4]=data_plot[i,2]-data_plot[i,3]
     }
     
-    data_plot$category=factor(data_plot$category)
+    data_plot$category <- factor(data_plot$category)
     pup <- ggplot(data=data_plot, aes(x=category, y=uplift)) +
       geom_bar(stat='identity', col='black', fill='#E50914', alpha=0.7)+labs(title=sprintf("Uplift Across %s Categories", vars[j]), 
                                                                   y="Uplift (%)", x=sprintf("%s Categories", vars[j]) )+mytheme
@@ -231,7 +234,7 @@ ResubPlots <- function(data, vars, target, treat){
 }
 
 
-list_plot=ResubPlots(data=finale, vars=c('u_age','u_occupation', 'u_plan', 'u_genre_pref', 'u_other_sub'), target='y', treat = 'treat')
+list_plot <- ResubPlots(data=finale, vars=c('u_age','u_occupation', 'u_plan', 'u_genre_pref', 'u_other_sub'), target='y', treat = 'treat')
 ggarrange(plotlist = list_plot[[1]])
 
 
@@ -259,35 +262,35 @@ plotta <- list(plot1, plot2, plot3)
 
 ggarrange(plotlist=plotta)
 
-deciles=c(seq(0.10, 1, 0.1))
-newdf=data.frame(deciles, perf_intermodel[[8]])
-colnames(newdf)=c('decile', 'uplift')
+deciles <- c(seq(0.10, 1, 0.1))
+newdf <- data.frame(deciles, perf_intermodel[[8]])
+colnames(newdf) <- c('decile', 'uplift')
 
-uplift1<-ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
+uplift1 <- ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
   geom_bar(stat='identity', alpha=0.7, fill="#E20812", col='#564d4d')+ 
   xlab("Perc. of Customer Base Targeted")+labs(title="Observed Uplift per Decile - InterLogit")+mytheme+
   ylab('Uplift (pp)')+mytheme+theme(legend.position="none")+geom_segment(x = 0.1, y=8.9, xend=10, yend=8.9, color="black",
                                                                          linetype="dashed", size=0.5)
 uplift1
 
-newdf=data.frame(deciles, perf_xgb[[8]])
-colnames(newdf)=c('decile', 'uplift')
+newdf <- data.frame(deciles, perf_xgb[[8]])
+colnames(newdf) <- c('decile', 'uplift')
 
-uplift2<-ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
+uplift2 <- ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
   geom_bar(stat='identity', alpha=0.7, fill="#E20812", col='#564d4d')+ 
   xlab("Perc. of Customer Base Targeted")+labs(title="Observed Uplift per Decile - XGB TM")+mytheme+
   ylab('Uplift (pp)')+mytheme+theme(legend.position="none")
 
 
-newdf=data.frame(deciles, perf_hcf[[8]])
-colnames(newdf)=c('decile', 'uplift')
+newdf <- data.frame(deciles, perf_hcf[[8]])
+colnames(newdf) <- c('decile', 'uplift')
 
-uplift3<-ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
+uplift3 <- ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
   geom_bar(stat='identity', alpha=0.7, fill="#E20812", col='#564d4d')+ 
   xlab("Perc. of Customer Base Targeted")+labs(title="Observed Uplift per Decile - HCF")+mytheme+
   ylab('Uplift (pp)')+mytheme+theme(legend.position="none")
 
-plotta2 = list(uplift1, uplift2, uplift3)
+plotta2 <- list(uplift1, uplift2, uplift3)
 
 ggarrange(plotlist=plotta2)
 
