@@ -15,7 +15,7 @@ library("plotly")
 library("ggrepel")
 library("RColorBrewer")
 
-source('./functions_group4.R')
+source('./functions.R')
 
 
 # total number of users under study
@@ -85,14 +85,10 @@ USERS <- data.table(u_id, u_gender, u_age, u_format_pref, u_genre_pref, u_plan,
 
 # Defining users' occupation variable based on some conditions related to their age
 # 1=student, 2=part-time, 3=full-time, 4=unemployed, 5=retired
-USERS$u_occupation[u_age==1] <- sample(c(1,2,3), nrow(USERS[u_age==1]),replace=T,
-                                       prob=c(0.9,0.07,0.03))
-USERS$u_occupation[u_age==2|u_age==3] <- sample(c(2,3,4),nrow(USERS[u_age==2|u_age==3]),replace=T,
-                                                prob=c(0.4,0.4,0.2))
-USERS$u_occupation[u_age==4|u_age==5] <- sample(c(2,3,4),nrow(USERS[u_age==4|u_age==5]),replace=T,
-                                                prob=c(0.1,0.7,0.2))
-USERS$u_occupation[u_age==6] <- sample(c(3,5),nrow(USERS[u_age==6]),replace=T,
-                                       prob=c(0.3,0.7))
+USERS$u_occupation[u_age==1] <- sample(c(1,2,3), nrow(USERS[u_age==1]),replace=T,prob=c(0.9,0.07,0.03))
+USERS$u_occupation[u_age==2|u_age==3] <- sample(c(2,3,4),nrow(USERS[u_age==2|u_age==3]),replace=T,prob=c(0.4,0.4,0.2))
+USERS$u_occupation[u_age==4|u_age==5] <- sample(c(2,3,4),nrow(USERS[u_age==4|u_age==5]),replace=T,prob=c(0.1,0.7,0.2))
+USERS$u_occupation[u_age==6] <- sample(c(3,5),nrow(USERS[u_age==6]),replace=T,prob=c(0.3,0.7))
 
 
 
