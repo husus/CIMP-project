@@ -79,12 +79,13 @@ u_weekly_utilisation_std = as.vector(scale(u_weekly_utilisation, center=TRUE, sc
 
 
 # Creating the data table with all the users
-USERS <- data.table(u_id, u_gender, u_age, u_format_pref, u_genre_pref, u_plan, 
-                    u_rating_given, u_sub_utilisation,u_weekly_utilisation, u_other_sub, 
+USERS <- data.table(u_id, u_gender, u_age, u_format_pref, u_genre_pref, u_plan,
+                    u_rating_given, u_sub_utilisation,u_weekly_utilisation, u_other_sub,
                     u_rating_given_std, u_sub_utilisation_std, u_weekly_utilisation_std)
 
 # Defining users' occupation variable based on some conditions related to their age
 # 1=student, 2=part-time, 3=full-time, 4=unemployed, 5=retired
+USERS$u_occupation <- NA
 USERS$u_occupation[u_age==1] <- sample(c(1,2,3), nrow(USERS[u_age==1]),replace=T,prob=c(0.9,0.07,0.03))
 USERS$u_occupation[u_age==2|u_age==3] <- sample(c(2,3,4),nrow(USERS[u_age==2|u_age==3]),replace=T,prob=c(0.4,0.4,0.2))
 USERS$u_occupation[u_age==4|u_age==5] <- sample(c(2,3,4),nrow(USERS[u_age==4|u_age==5]),replace=T,prob=c(0.1,0.7,0.2))
@@ -94,7 +95,7 @@ USERS$u_occupation[u_age==6] <- sample(c(3,5),nrow(USERS[u_age==6]),replace=T,pr
 
 
 #### DERIVING THE UTILITY SCORE ####
-# In this section, we define the utility score that will be used to determine 
+# In this section, we define the utility score that will be used to determine
 # who is going to churn among the currently active users.
 # The utility score is the result of two macro components:
 # 1) A baseline component, which does not depend on the treatment and incorporates both
@@ -225,14 +226,14 @@ USERS[, resub := ifelse(total_score > threshold_churn, 1, 0)] #our y variable
 
 
 ## Final check
-USERS1$resub = USERS$resub 
+USERS1$resub <- USERS$resub
 
 final_test_formula = as.formula("resub ~ u_gender + treated + u_age + u_weekly_utilisation + 
                   u_sub_utilisation + u_format_pref + u_genre_pref + u_rating_given + 
                   u_other_sub + u_plan + u_occupation + treated*u_age + treated*u_genre_pref + 
                   treated*u_plan + treated*u_other_sub + treated*u_occupation")
 
-final_test = lm(final_test_formula, data = USERS1)
+final_test <- lm(final_test_formula, data = USERS1)
 summary(final_test)
 
 
@@ -241,7 +242,7 @@ final_test_formula = as.formula("resub ~ u_gender + treated + u_age + u_weekly_u
                         u_sub_utilisation + u_format_pref + u_genre_pref + u_rating_given + 
                         u_other_sub + u_plan + u_occupation")
 
-final_test = lm(final_test_formula, data = USERS1)
+final_test <- lm(final_test_formula, data = USERS1)
 summary(final_test)
 
 
@@ -260,7 +261,7 @@ data_export <- as.data.frame(data_export)
 
 
 #### EXPLORATORY DATA ANALYSIS ####
-data = as.data.frame(USERS)
+data <- as.data.frame(USERS)
 # NB. function created in './functions.R'
 list_plot=ResubPlots(data=data, vars=c('u_age','u_occupation', 'u_plan', 'u_genre_pref', 'u_other_sub'),
                     target='resub', treat = 'treated')
