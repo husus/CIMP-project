@@ -80,13 +80,17 @@ ResubPlots <- function(data, vars, target, treat){
 #### FUNCTIONS FOR ESTIMATING MODELS ####
 
 InterModel.logit <- function ( formula, train, test, treat, outcome, lambda=NULL) {
-    
+    # This function estimates on the train set the logit model which is specified in the inputed formula
+    # and provides the associated treatment effects for individuals in the test set. If lambda is
+    # is specified, the penalized version of the model is estimated as well, together with 
+    # the associated TEs. 
     # Args:
     #   formula: formula for estimating the logit model on the train set
     #   train: train set
     #   test: test set
     #   treat: treatment
     #   outcome: our outcome wrt the treatment effect is evaluated
+    #   lambda: lambda for estimating the penalized version of the inputed logit model
     #   
     # Return:
     #   A list with the non-penalized logit model estimated the train set,
