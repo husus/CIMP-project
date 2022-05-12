@@ -22,6 +22,7 @@ At this point, we applied some uplift modeling techniques in order to estimate i
 ## References
 * https://towardsdatascience.com/a-quick-uplift-modeling-introduction-6e14de32bfe0
 * https://proceedings.mlr.press/v67/gutierrez17a/gutierrez17a.pdf
+* https://www.researchgate.net/publication/220520042_The_True_Lift_Model_-_A_Novel_Data_Mining_Approach_to_Response_Modeling_in_Database_Marketing
 * https://towardsdatascience.com/causal-machine-learning-for-econometrics-causal-forests-5ab3aec825a7
 * https://arxiv.org/pdf/1901.10867.pdf
 * https://www.markhw.com/blog/causalforestintro
