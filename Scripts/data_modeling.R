@@ -112,41 +112,6 @@ train_ctrl <- subset(train, treat == 0)
 train_oh_treat <- subset(train_oh, treat == 1)
 train_oh_ctrl <- subset(train_oh, treat == 0)
 
-
-#### 3.1 TWO MODEL - LOGIT ####
-
-logitformula <- as.formula(paste("y~", paste(features, collapse = "+")))
-
-
-# Training the first model on control units in the train set
-logit_ctrl <- glm(
-    formula = logitformula,
-    data = train_ctrl, family = binomial(link = logit))
-
-# Training the second model on treated units in the train set
-logit_treat <- glm(
-    formula = logitformula,
-    data = train_treat, family = binomial(link = logit))
-
-# Extract for each customer the predicted prob of resub from both models
-pred_prob_C_logit2 <- predict(logit_ctrl, newdata = test, type = "response")
-pred_prob_T_logit2 <- predict(logit_treat, newdata = test, type = "response")
-
-# Adding the tau from the two-model logit to the comparison df
-df_comparison$tau_logit2 <- pred_prob_T_logit2 - pred_prob_C_logit2
-
-
-# Evaluating the performance of the model
-perf_logit2 <- PerformanceUplift(
-                            data = df_comparison, treat = "treat",
-                            outcome = "y", prediction = "tau_logit2",
-                            equal.intervals = TRUE, nb.group = 10, rank.precision = 2
-                        )
-
-
-
-#### 3.2 TWO MODEL - XGBOOST ####
-
 # Setting up the xgboost learner
 xgb_learner <- makeLearner("classif.xgboost", predict.type = "prob",
                             par.vals = list(objective = "binary:logistic",
