@@ -23,84 +23,12 @@ library("tools4uplift")
 # Importing personal functions
 source('./functions.R')
 
-
-
-
-#### Data Preparation ####
-
 # Importing already generated dataset
-finale <- read.csv("./full_data_logit.csv")
-df_comparison <- read.csv("./comparison_data.csv")
+df_comparison <- read.csv("./comparison_data.csv") #it includes the test set (3000 users) with the estimated TEs from each model (Intelogit, XGB, HCF)
+finale <- read.csv("./full_data_logit.csv") #it includes the whole dataset (10000 users) with all the features and the estimated TEs of our final model (Interlogit)
 
 
-
-kde <- ggplot(finale) + 
-  geom_density(aes(x=tau_interlogit), color='black', fill="#E20812" , alpha=0.7) +
-  mytheme + labs(fill="", title='KDE of Estiamted Individual Treatment Effects', x='Estimated ITE')
-
-kde
-
-
-barplot <- ggplot(data=finale, aes(x=tau_interlogit)) +
-  geom_histogram(position = 'identity', alpha=0.7, bins=30,  fill="#E20812", col='black' ) +
-  mytheme +
-  labs(fill="", title='Barplot of Estimated Individual Treatment Effects', x='Estimated ITE')
-
-barplot
-
-
-perf_intermodel <- PerformanceUplift(data = df_comparison, treat = "treat",
-                                              outcome = "y", prediction = "tau_interlogit", equal.intervals = TRUE, nb.group = 10,
-                                              rank.precision = 2)
-perf_xgb <- PerformanceUplift(data = df_comparison, treat = "treat",
-                                     outcome = "y", prediction = "tau_xgb", equal.intervals = TRUE, nb.group = 10,
-                                     rank.precision = 2)
-perf_hcf <- PerformanceUplift(data = df_comparison, treat = "treat",
-                                     outcome = "y", prediction = "tau_hcf", equal.intervals = TRUE, nb.group = 10,
-                                     rank.precision = 2)
-
-barplot.PerformanceUplift(perf_intermodel)
-
-
-perf_list <- list(perf_intermodel, perf_xgb, perf_hcf)
-
-for(perf in perf_list){
-  print(QiniArea(perf))}
-
-
-
-# Plotting Qini Curves
-qini_plots <- MultiQiniPlots(perf_list, names=c('InterLogit', 'XGB', 'HCF')) #personal function
-qini_plots[[1]]
-qini_plots[[2]]
-
-uplift_plot <- MovingDifference(perf_list,  names=c('InterLogit', 'XGB', 'HCF')) #personal function
-uplift_plot
-
-
-perf_list <- list(perf_intermodel)
-uplift_plot <- MovingDifference(perf_list, names=c( 'InterLogit')) #personal function
-uplift_plot
-
-
-
-ggplot(finale, aes(x=as.factor(u_other_sub), y=tau_interlogit)) + 
-  geom_boxplot(fill="#E20812", alpha=0.7) + 
-  xlab("Subscription to Other Platforms")+labs(title="ITE Across Different Subscription Behaviours")+mytheme+
-  ylab('Individual Treatment Effect')
-
-ggplot(finale, aes(x=as.factor(u_genre_pref), y=tau_interlogit)) + 
-  geom_boxplot(fill="#E20812", alpha=0.7) + 
-  xlab("Occupation Category")+labs(title="ITE Across Different Occupations")+mytheme+
-  ylab('Individual Treatment Effect')
-
-
-ggplot(finale, aes(x=u_sub_utilisation, y=tau_interlogit)) + 
-  geom_point(col="#E20812", alpha=0.7)+
-  geom_smooth(method=lm)
-
-
-
+# Inspecting the distribution of some of the features we have created
 ggplot(finale, aes(x=as.factor(u_age) )) +
   geom_bar(aes(), alpha=0.7, fill="#E20812")+ 
   xlab("Age Categories")+labs(title="Distribution of Users' Age")+mytheme+
@@ -137,11 +65,29 @@ ggplot(finale, aes(x=as.factor(u_other_sub))) +
   ylab('Number of Users')+mytheme+theme(legend.position="none")
 
 
-
-
+# Exploratory Data Anlysis to Assess the Presence of Heterogeneity in Treatment Effect across different groups
 list_plot <- ResubPlots(data=finale, vars=c('u_age','u_occupation', 'u_plan', 'u_genre_pref', 'u_other_sub'), target='y', treat = 'treat')
 ggarrange(plotlist = list_plot[[1]])
 
+
+# Checking the distribution of Estimated Treatment Effects derived from our final model (Interlogit)
+
+kde <- ggplot(finale) + 
+  geom_density(aes(x=tau_interlogit), color='black', fill="#E20812" , alpha=0.7) +
+  mytheme + labs(fill="", title='KDE of Estiamted Individual Treatment Effects', x='Estimated ITE')
+
+kde
+
+
+barplot <- ggplot(data=finale, aes(x=tau_interlogit)) +
+  geom_histogram(position = 'identity', alpha=0.7, bins=30,  fill="#E20812", col='black' ) +
+  mytheme +
+  labs(fill="", title='Barplot of Estimated Individual Treatment Effects', x='Estimated ITE')
+
+barplot
+
+
+# Comparing the distributions of estimated TEs across different models
 
 df_plot <- df_comparison %>% select(tau_xgb, tau_hcf, tau_interlogit)
 data_melt <- melt(df_plot)
@@ -163,9 +109,48 @@ plot3 <- ggplot(df_comparison) +
   geom_density(aes(x=tau_hcf), color='black', fill="#E20812" , alpha=0.7) +
   mytheme + labs(fill="", title='KDE of Estiamted ITE - HCF', x='Estimated ITE')
 
-plotta <- list(plot1, plot2, plot3)
+multiple_densities <- list(plot1, plot2, plot3)
 
-ggarrange(plotlist=plotta)
+ggarrange(plotlist=multiple_densities)
+
+
+# Building Qini Curves for our three models (Intelogit, XGB and HCF)
+
+
+perf_intermodel <- PerformanceUplift(data = df_comparison, treat = "treat",
+                                              outcome = "y", prediction = "tau_interlogit", equal.intervals = TRUE, nb.group = 10,
+                                              rank.precision = 2)
+perf_xgb <- PerformanceUplift(data = df_comparison, treat = "treat",
+                                     outcome = "y", prediction = "tau_xgb", equal.intervals = TRUE, nb.group = 10,
+                                     rank.precision = 2)
+perf_hcf <- PerformanceUplift(data = df_comparison, treat = "treat",
+                                     outcome = "y", prediction = "tau_hcf", equal.intervals = TRUE, nb.group = 10,
+                                     rank.precision = 2)
+
+
+# Plotting Qini Curves
+qini_plots <- MultiQiniPlots(perf_list, names=c('InterLogit', 'XGB', 'HCF')) #personal function
+qini_plots[[1]]
+qini_plots[[2]]
+
+uplift_plot <- MovingDifference(perf_list,  names=c('InterLogit', 'XGB', 'HCF')) #personal function
+uplift_plot
+
+# Checking Qini Coefficients
+perf_list <- list(perf_intermodel, perf_xgb, perf_hcf)
+
+for(perf in perf_list){
+  print(QiniArea(perf))}
+
+
+# Plotting the cumulative uplift as a function of % of customer base targeted
+perf_list <- list(perf_intermodel)
+uplift_plot <- MovingDifference(perf_list, names=c( 'InterLogit')) #personal function
+uplift_plot
+
+
+
+# Plotting the uplift per decile 
 
 deciles <- c(seq(0.10, 1, 0.1))
 newdf <- data.frame(deciles, perf_intermodel[[8]])
@@ -195,7 +180,23 @@ uplift3 <- ggplot(newdf, aes(x=as.factor(decile), y=uplift)) +
   xlab("Perc. of Customer Base Targeted")+labs(title="Observed Uplift per Decile - HCF")+mytheme+
   ylab('Uplift (pp)')+mytheme+theme(legend.position="none")
 
-plotta2 <- list(uplift1, uplift2, uplift3)
+uplift_per_decile <- list(uplift1, uplift2, uplift3)
 
-ggarrange(plotlist=plotta2)
+ggarrange(plotlist=uplift_per_decile)
 
+
+# Inspecting the relationship between the estimated treatment effects and other features of our customers 
+
+ggplot(finale, aes(x=as.factor(u_other_sub), y=tau_interlogit)) + 
+  geom_boxplot(fill="#E20812", alpha=0.7) + 
+  xlab("Subscription to Other Platforms")+labs(title="ITE Across Different Subscription Behaviours")+mytheme+
+  ylab('Individual Treatment Effect')
+
+ggplot(finale, aes(x=as.factor(u_genre_pref), y=tau_interlogit)) + 
+  geom_boxplot(fill="#E20812", alpha=0.7) + 
+  xlab("Occupation Category")+labs(title="ITE Across Different Occupations")+mytheme+
+  ylab('Individual Treatment Effect')
+
+ggplot(finale, aes(x=u_sub_utilisation, y=tau_interlogit)) + 
+  geom_point(col="#E20812", alpha=0.7)+
+  geom_smooth(method=lm)
